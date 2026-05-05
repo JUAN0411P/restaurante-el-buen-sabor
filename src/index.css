@@ -1,0 +1,227 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #f4ede0;
+  font-family: 'Manrope', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #ebe3d2; }
+::-webkit-scrollbar-thumb { background: #4a5d3a; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: #36462a; }
+
+/* ===== Global animations ===== */
+@keyframes ebs-fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes ebs-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ebs-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .5; transform: scale(.85); }
+}
+
+@keyframes ebs-pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(184, 135, 58, .55); }
+  70% { box-shadow: 0 0 0 12px rgba(184, 135, 58, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(184, 135, 58, 0); }
+}
+
+@keyframes ebs-pulse-ring-red {
+  0% { box-shadow: 0 0 0 0 rgba(168, 60, 44, .55); }
+  70% { box-shadow: 0 0 0 14px rgba(168, 60, 44, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(168, 60, 44, 0); }
+}
+
+@keyframes ebs-shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+
+@keyframes ebs-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes ebs-tick {
+  0% { transform: scale(0) rotate(-20deg); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+@keyframes ebs-countdown {
+  from { transform: scale(1); }
+  50% { transform: scale(1.08); color: #a83c2c; }
+  to { transform: scale(1); }
+}
+
+@keyframes ebs-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes ebs-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-3px) rotate(-.3deg); }
+  40% { transform: translateX(3px) rotate(.3deg); }
+  60% { transform: translateX(-2px); }
+  80% { transform: translateX(2px); }
+}
+
+@keyframes ebs-lock-wiggle {
+  0%, 100% { transform: rotate(0); }
+  30% { transform: rotate(-10deg); }
+  60% { transform: rotate(10deg); }
+}
+
+@keyframes ebs-spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ebs-slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ===== Interactive micro-transitions ===== */
+.ebs-btn {
+  transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+}
+.ebs-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -8px rgba(60, 40, 20, .25);
+}
+.ebs-btn:active { transform: translateY(0); }
+
+.ebs-card {
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+.ebs-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px -18px rgba(60, 50, 20, .18);
+}
+
+.ebs-row {
+  transition: background .15s ease, transform .15s ease;
+}
+.ebs-row:hover {
+  background: rgba(0, 0, 0, .02);
+  transform: translateX(2px);
+}
+
+.ebs-mesa {
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.ebs-mesa:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 22px -14px rgba(60, 40, 20, .28);
+}
+
+/* ===== Entry animations ===== */
+.ebs-enter {
+  animation: ebs-fade-up .55s cubic-bezier(.2, .8, .2, 1) both;
+}
+
+.ebs-stagger > * {
+  animation: ebs-fade-up .55s cubic-bezier(.2, .8, .2, 1) both;
+}
+.ebs-stagger > *:nth-child(1) { animation-delay: .05s; }
+.ebs-stagger > *:nth-child(2) { animation-delay: .12s; }
+.ebs-stagger > *:nth-child(3) { animation-delay: .19s; }
+.ebs-stagger > *:nth-child(4) { animation-delay: .26s; }
+.ebs-stagger > *:nth-child(5) { animation-delay: .33s; }
+.ebs-stagger > *:nth-child(6) { animation-delay: .40s; }
+.ebs-stagger > *:nth-child(7) { animation-delay: .47s; }
+.ebs-stagger > *:nth-child(8) { animation-delay: .54s; }
+.ebs-stagger > *:nth-child(9) { animation-delay: .61s; }
+.ebs-stagger > *:nth-child(10) { animation-delay: .68s; }
+
+.ebs-pulse-dot { animation: ebs-pulse 1.6s ease-in-out infinite; }
+.ebs-pulse-ring { animation: ebs-pulse-ring 2s ease-out infinite; }
+.ebs-pulse-ring-red { animation: ebs-pulse-ring-red 1.5s ease-out infinite; }
+.ebs-float { animation: ebs-float 2.6s ease-in-out infinite; }
+.ebs-tick-in { animation: ebs-tick .5s cubic-bezier(.2, .9, .3, 1.3) both; }
+.ebs-countdown { animation: ebs-countdown 1s ease-in-out infinite; display: inline-block; }
+.ebs-slide-in { animation: ebs-slide-in-right .3s ease-out; }
+
+/* ===== Locked ticket (kitchen FIFO) ===== */
+.ebs-locked {
+  position: relative;
+  transition: transform .3s cubic-bezier(.2, .8, .2, 1), box-shadow .3s ease, border-color .3s ease;
+  cursor: not-allowed;
+  overflow: hidden;
+}
+.ebs-locked::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent 0, transparent 8px,
+    rgba(0, 0, 0, .025) 8px, rgba(0, 0, 0, .025) 16px
+  );
+  opacity: 0;
+  transition: opacity .3s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+.ebs-locked:hover {
+  animation: ebs-shake .45s cubic-bezier(.36, .07, .19, .97);
+  border-color: rgba(168, 60, 44, .45) !important;
+  box-shadow: 0 10px 24px -14px rgba(168, 60, 44, .35);
+}
+.ebs-locked:hover::before { opacity: 1; }
+.ebs-locked > * { position: relative; z-index: 2; }
+
+.ebs-locked .ebs-lock-icon {
+  transition: transform .3s cubic-bezier(.2, .8, .2, 1);
+}
+.ebs-locked:hover .ebs-lock-icon {
+  animation: ebs-lock-wiggle .5s ease-in-out;
+  transform: scale(1.15);
+}
+
+/* ===== Legacy compat (existing animations used in components) ===== */
+@keyframes pulse-warn {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(184, 135, 58, 0.5); }
+  50% { box-shadow: 0 0 0 8px rgba(184, 135, 58, 0); }
+}
+.animate-pulse-warn {
+  animation: pulse-warn 1.5s ease-in-out infinite;
+}
+
+@keyframes blink-urgent {
+  0%, 100% { background-color: #f3dbd4; }
+  50% { background-color: #e8b8aa; }
+}
+.animate-blink-urgent {
+  animation: blink-urgent 1s ease-in-out infinite;
+}
+
+.animate-slide-in {
+  animation: ebs-slide-in-right .3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
