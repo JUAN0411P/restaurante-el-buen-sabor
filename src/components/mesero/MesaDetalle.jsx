@@ -24,15 +24,15 @@ export function MesaDetalle({ mesaActiva, mesaData, orders, mesas, onAgregarCome
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         <div>
-          <KickerLabel>— {mesaData.comensales.length} {mesaData.comensales.length === 1 ? 'comensal' : 'comensales'}</KickerLabel>
+          <KickerLabel>— {mesa_data.comensales.length} {mesa_data.comensales.length === 1 ? 'comensal' : 'comensales'}</KickerLabel>
           <div style={{ ...FontFraunces, fontSize: 18, color: T.text }}>
-            {mesaData.comensales.length === 0 ? 'Mesa vacía' : 'Comensales activos'}
+            {mesa_data.comensales.length === 0 ? 'Mesa vacía' : 'Comensales activos'}
           </div>
         </div>
         <Btn icon={UserPlus} size="sm" onClick={onAgregarComensal}>Agregar comensal</Btn>
       </div>
 
-      {mesaData.comensales.length === 0 && (
+      {mesa_data.comensales.length === 0 && (
         <div style={{ padding: '24px 16px', textAlign: 'center', borderRadius: 12, background: T.bg, border: `1px dashed ${T.border}` }}>
           <p style={{ fontSize: 13, color: T.textMute, margin: 0 }}>
             Aún no hay comensales. Toca "Agregar comensal" para empezar.
@@ -41,7 +41,7 @@ export function MesaDetalle({ mesaActiva, mesaData, orders, mesas, onAgregarCome
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {mesaData.comensales.map(c => {
+        {mesa_data.comensales.map(c => {
           const ordersC = orders.filter(o => o.comensalId === c.id);
           const tones = { suscripcion: 'olive', menu: 'mustard', invitado: 'plum' };
           const totalC = ordersC.filter(o => !o.pagado && o.tipo === 'menu').reduce((s, o) => s + o.total, 0);

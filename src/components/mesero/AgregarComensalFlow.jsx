@@ -21,7 +21,7 @@ export function AgregarComensalFlow({ mesaActiva, mesaData, suscriptores, onCanc
   const totalSteps = tipoComensal === 'menu' ? 2 : tipoComensal === 'suscripcion' ? 3 : 1;
 
   const subsFiltrados = suscriptores.filter(s =>
-    s.activo && s.plan && s.almuerzosRestantes > 0 &&
+    s.activo && s.plan && s.almuerzos_restantes > 0 &&
     (s.nombre.toLowerCase().includes(searchSub.toLowerCase())
       || s.codigo?.toLowerCase().includes(searchSub.toLowerCase())
       || s.cedula?.includes(searchSub))
@@ -129,8 +129,8 @@ export function AgregarComensalFlow({ mesaActiva, mesaData, suscriptores, onCanc
                   <div style={{ fontSize: 11, color: T.textSoft, ...FontMono }}>{s.codigo} · {s.cedula}</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-end' }}>
-                  {s.permitirInvitados && <Tag tone="plum" size="xs"><Crown size={10} /> INVITA</Tag>}
-                  <Tag tone={s.almuerzosRestantes <= 5 ? 'mustard' : 'olive'} size="xs">{s.almuerzosRestantes} REST</Tag>
+                  {s.permitir_invitados && <Tag tone="plum" size="xs"><Crown size={10} /> INVITA</Tag>}
+                  <Tag tone={s.almuerzos_restantes <= 5 ? 'mustard' : 'olive'} size="xs">{s.almuerzos_restantes} REST</Tag>
                 </div>
               </button>
             ))}
@@ -150,7 +150,7 @@ export function AgregarComensalFlow({ mesaActiva, mesaData, suscriptores, onCanc
             <KickerLabel>— suscriptor seleccionado</KickerLabel>
             <div style={{ ...FontFraunces, fontSize: 17, color: T.text }}>{subSelected.nombre}</div>
             <div style={{ fontSize: 11, color: T.textSoft, ...FontMono }}>
-              {subSelected.codigo} · {subSelected.almuerzosRestantes} almuerzos restantes
+              {subSelected.codigo} · {subSelected.almuerzos_restantes} almuerzos restantes
             </div>
           </div>
 
@@ -180,7 +180,7 @@ export function AgregarComensalFlow({ mesaActiva, mesaData, suscriptores, onCanc
               </div>
               <ChevronRight size={16} color={T.textMute} />
             </button>
-            {subSelected.permitirInvitados && subSelected.almuerzosRestantes > 1 && (
+            {subSelected.permitir_invitados && subSelected.almuerzos_restantes > 1 && (
               <button
                 onClick={() => setShowInvitModal(true)}
                 className="ebs-card"
@@ -208,7 +208,7 @@ export function AgregarComensalFlow({ mesaActiva, mesaData, suscriptores, onCanc
                 <ChevronRight size={16} color={T.textMute} />
               </button>
             )}
-            {!subSelected.permitirInvitados && (
+            {!subSelected.permitir_invitados && (
               <div style={{ padding: 12, borderRadius: 10, background: T.bg, fontSize: 11, color: T.textSoft, display: 'flex', alignItems: 'center', gap: 8, ...FontMono }}>
                 <AlertTriangle size={14} color={T.mustard} />
                 Este suscriptor no tiene autorización para invitar.

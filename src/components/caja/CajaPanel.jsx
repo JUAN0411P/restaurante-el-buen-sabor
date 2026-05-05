@@ -19,8 +19,8 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
   const porCobrar = ordersToday.filter(o => o.estado === 'entregado' && !o.pagado && o.tipo === 'menu');
   const cobradas = ordersToday.filter(o => o.pagado);
   const totalDia = cobradas.reduce((s, o) => s + o.total, 0);
-  const subsSinPlan = suscriptores.filter(s => s.activo && !s.plan);
-  const subsPorVencer = suscriptores.filter(s => s.activo && s.plan && s.fechaVencimiento && new Date(s.fechaVencimiento) < new Date(Date.now() + 7 * 86400000));
+  const subsSinPlan = suscriptores.filter(s => s.activo && !s.plan_id);
+  const subsPorVencer = suscriptores.filter(s => s.activo && s.plan_id && s.fechaVencimiento && new Date(s.fechaVencimiento) < new Date(Date.now() + 7 * 86400000));
 
   const procesarPago = async (order, metodo) => {
     const next = orders.map(o => o.id === order.id ? { ...o, pagado: true, metodoPago: metodo, fechaPago: new Date().toISOString() } : o);
@@ -202,9 +202,9 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
             <Btn icon={Plus} onClick={() => setNewSub(true)}>Registrar nuevo</Btn>
           </div>
           <div style={{ display: 'grid', gap: 12 }} className="grid md:grid-cols-2 grid-cols-1">
-            {suscriptores.filter(s => s.plan).map(s => {
+            {suscriptores.filter(s => s.plan_id).map(s => {
               const plan = planes.find(p => p.id === s.plan);
-              const venceProto = s.fechaVencimiento && new Date(s.fechaVencimiento) < new Date(Date.now() + 7 * 86400000);
+              const venceProto = s.fecha_vencimiento && new Date(s.fechaVencimiento) < new Date(Date.now() + 7 * 86400000);
               return (
                 <Card key={s.id} padding={16}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
@@ -218,9 +218,9 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
                       </div>
                       <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 4 }}>{plan?.nombre}</div>
                       <div style={{ fontSize: 12, color: T.textSoft, ...FontMono }}>
-                        {s.almuerzosRestantes} alm · vence {s.fechaVencimiento}
+                        {s.almuerzos_restantes} alm · vence {s.fecha_vencimiento}
                       </div>
-                      {(venceProto || s.almuerzosRestantes <= 3) && (
+                      {(venceProto || s.almuerzos_restantes <= 3) && (
                         <div style={{ marginTop: 10 }}>
                           <Btn size="sm" variant="ghost" onClick={() => setActivarPlan(s)}>Renovar plan</Btn>
                         </div>
@@ -310,10 +310,10 @@ function ActivarPlanModal({ open, onClose, sub, planes, suscriptores, refresh })
     venc.setDate(venc.getDate() + plan.dias);
 
     const next = suscriptores.map(s => s.id === sub.id ? {
-      ...s, plan: plan.id, almuerzosRestantes: plan.almuerzos,
-      fechaInicio: hoy.toISOString().slice(0, 10),
-      fechaVencimiento: venc.toISOString().slice(0, 10),
-      diasExtraCompensados: 0,
+      ...s, plan_id: plan.id, almuerzosRestantes: plan.almuerzos,
+      fecha_inicio: hoy.toISOString().slice(0, 10),
+      fecha_vencimiento: venc.toISOString().slice(0, 10),
+      dias_extra_compensados: 0,
     } : s);
     await db.set('rest:subs', next);
 

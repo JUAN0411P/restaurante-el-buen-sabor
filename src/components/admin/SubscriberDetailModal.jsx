@@ -19,25 +19,25 @@ export function SubscriberDetailModal({ open, onClose, sub, plan, events, orders
 
   if (!sub) return null;
 
-  const subEvents = events.filter(e => e.suscriptorId === sub.id);
+  const subEvents = events.filter(e => e.suscriptor_id === sub.id);
   const subOrders = orders.filter(o => o.suscriptor?.id === sub.id);
   const payments = subOrders.filter(o => o.pagado);
   const avisos = subEvents.filter(e => e.tipo === 'aviso-inasistencia');
   const inasistencias = subEvents.filter(e => e.tipo === 'inasistencia-sin-aviso');
 
-  const diasYaCompensados = sub.diasExtraCompensados || 0;
+  const diasYaCompensados = sub.dias_extra_compensados || 0;
   const diasDisponiblesAuto = Math.max(0, MAX_DIAS_COMPENSADOS_AUTO - diasYaCompensados);
 
   const compensarDiaAuto = async () => {
     if (diasDisponiblesAuto <= 0) { alert('Ya usaste los 4 días automáticos. El suscriptor debe solicitar extensión desde su app.'); return; }
     const subs = await db.get('rest:subs', []);
-    const venc = new Date(sub.fechaVencimiento);
+    const venc = new Date(sub.fecha_vencimiento);
     venc.setDate(venc.getDate() + 1);
     await db.set('rest:subs', subs.map(s => s.id === sub.id ? {
       ...s,
-      fechaVencimiento: venc.toISOString().slice(0, 10),
-      diasExtraCompensados: (s.diasExtraCompensados || 0) + 1,
-      almuerzosRestantes: s.almuerzosRestantes + 1,
+      fecha_vencimiento: venc.toISOString().slice(0, 10),
+      dias_extra_compensados: (s.dias_extra_compensados || 0) + 1,
+      almuerzos_restantes: s.almuerzos_restantes + 1,
     } : s));
     refresh();
   };
@@ -78,11 +78,11 @@ export function SubscriberDetailModal({ open, onClose, sub, plan, events, orders
               <p className="text-xs" style={{ color: T.textSoft }}>Plan actual</p>
               <p className="font-medium" style={{ color: T.text, fontFamily: 'Fraunces, serif' }}>{plan.nombre}</p>
               <p className="text-xs mt-1" style={{ color: T.textSoft }}>
-                Inicio: {sub.fechaInicio || '—'} · Vence: {sub.fechaVencimiento || '—'}
+                Inicio: {sub.fecha_inicio || '—'} · Vence: {sub.fecha_vencimiento || '—'}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-2xl font-medium" style={{ color: T.accent, fontFamily: 'Fraunces, serif' }}>{sub.almuerzosRestantes}</p>
+              <p className="text-2xl font-medium" style={{ color: T.accent, fontFamily: 'Fraunces, serif' }}>{sub.almuerzos_restantes}</p>
               <p className="text-xs" style={{ color: T.textSoft }}>almuerzos restantes</p>
             </div>
           </div>
@@ -115,8 +115,8 @@ export function SubscriberDetailModal({ open, onClose, sub, plan, events, orders
         <div>
           <AttendanceCalendar
             events={subEvents}
-            fechaInicio={sub.fechaInicio}
-            fechaVencimiento={sub.fechaVencimiento}
+            fechaInicio={sub.fecha_inicio}
+            fechaVencimiento={sub.fecha_vencimiento}
           />
           {plan && (
             <div className="mt-4 p-3 rounded-lg flex items-center justify-between gap-3 flex-wrap" style={{ backgroundColor: T.greenSoft }}>
@@ -147,10 +147,10 @@ export function SubscriberDetailModal({ open, onClose, sub, plan, events, orders
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div>
                       <p className="text-sm font-medium" style={{ color: T.text }}>{p.items.map(i => i.nombre).join(', ')}</p>
-                      <p className="text-xs" style={{ color: T.textSoft }}>{formatDateTime(p.fechaPago || p.fecha)} · Mesa {p.mesa}</p>
+                      <p className="text-xs" style={{ color: T.textSoft }}>{formatDateTime(p.fecha_pago || p.fecha)} · Mesa {p.mesa_numero}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Tag color="blue">{p.metodoPago}</Tag>
+                      <Tag color="blue">{p.metodo_pago}</Tag>
                       <span className="font-medium" style={{ color: T.accent }}>{formatMoney(p.total)}</span>
                     </div>
                   </div>

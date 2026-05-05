@@ -29,7 +29,7 @@ const TIPO_COLORS = {
 };
 
 export function NotificationsPanel({ open, onClose, notifications, refresh, onAction, canApprove = false }) {
-  const sorted = [...notifications].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const sorted = [...notifications].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   const marcarLeida = async (id) => {
     const all = await db.get('rest:notifications', []);
@@ -89,7 +89,7 @@ export function NotificationsPanel({ open, onClose, notifications, refresh, onAc
                         </Tag>}
                       </div>
                       <p className="text-xs" style={{ color: T.textSoft }}>{n.mensaje}</p>
-                      <p className="text-xs mt-1" style={{ color: T.textMute }}>{formatDateTime(n.createdAt)}</p>
+                      <p className="text-xs mt-1" style={{ color: T.textMute }}>{formatDateTime(n.created_at)}</p>
 
                       {/* Detalles especiales para solicitud-extension (vista admin) */}
                       {esSolicitudExtension && n.snapshot && (
@@ -144,11 +144,11 @@ function ExtensionDetails({ snapshot, dias, motivo }) {
         </div>
         <div>
           <span style={{ color: T.textMute }}>Vence:</span>
-          <span className="font-medium ml-1" style={{ color: T.text }}>{snapshot.fechaVencimiento}</span>
+          <span className="font-medium ml-1" style={{ color: T.text }}>{snapshot.fecha_vencimiento}</span>
         </div>
         <div>
           <span style={{ color: T.textMute }}>Almuerzos:</span>
-          <span className="font-medium ml-1" style={{ color: T.text }}>{snapshot.almuerzosRestantes}</span>
+          <span className="font-medium ml-1" style={{ color: T.text }}>{snapshot.almuerzos_restantes}</span>
         </div>
         <div>
           <span style={{ color: T.textMute }}>Ya compensados:</span>
@@ -181,13 +181,13 @@ function ExtensionActions({ notif, refresh }) {
     const subs = await db.get('rest:subs', []);
     const updated = subs.map(s => {
       if (s.id !== notif.suscriptorId) return s;
-      const venc = s.fechaVencimiento ? new Date(s.fechaVencimiento) : new Date();
+      const venc = s.fecha_vencimiento ? new Date(s.fecha_vencimiento) : new Date();
       venc.setDate(venc.getDate() + notif.dias);
       return {
         ...s,
-        fechaVencimiento: venc.toISOString().slice(0, 10),
-        almuerzosRestantes: s.almuerzosRestantes + notif.dias,
-        diasExtraCompensados: (s.diasExtraCompensados || 0) + notif.dias,
+        fecha_vencimiento: venc.toISOString().slice(0, 10),
+        almuerzos_restantes: s.almuerzos_restantes + notif.dias,
+        dias_xtra_compensados: (s.dias_xtra_compensados || 0) + notif.dias,
       };
     });
     await db.set('rest:subs', updated);

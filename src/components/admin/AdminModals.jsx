@@ -140,14 +140,14 @@ export function NewSubModal({ open, onClose, suscriptores, refresh }) {
       cedula: form.cedula,
       telefono: form.telefono,
       password: hashPw(form.password),
-      plan: null,
-      almuerzosRestantes: 0,
-      fechaInicio: null,
-      fechaVencimiento: null,
-      diasExtraCompensados: 0,
+      plan_id: null,
+      almuerzos_restantes: 0,
+      fecha_inicio: null,
+      fecha_vencimiento: null,
+      dias_extra_compensados: 0,
       activo: true,
-      permitirInvitados: false,
-      createdAt: new Date().toISOString(),
+      permitir_invitados: false,
+      created_at: new Date().toISOString(),
     };
     await db.set('rest:subs', [...suscriptores, nuevo]);
     setForm({ nombre: '', email: '', cedula: '', telefono: '', password: '' });

@@ -1,11 +1,11 @@
 import { hashPw } from './utils';
 
 export const SEED_USERS = [
-  { id: 'u1', usuario: 'admin', nombre: 'Administrador General', password: hashPw('admin123'), rol: 'admin', activo: true, createdAt: new Date().toISOString() },
-  { id: 'u2', usuario: 'caja1', nombre: 'Sandra López', password: hashPw('caja123'), rol: 'caja', activo: true, createdAt: new Date().toISOString() },
-  { id: 'u3', usuario: 'mesero1', nombre: 'Juan Pérez', password: hashPw('mesero123'), rol: 'mesero', activo: true, createdAt: new Date().toISOString() },
-  { id: 'u4', usuario: 'mesero2', nombre: 'Laura Vargas', password: hashPw('mesero123'), rol: 'mesero', activo: true, createdAt: new Date().toISOString() },
-  { id: 'u5', usuario: 'cocina1', nombre: 'Doña Rosa', password: hashPw('cocina123'), rol: 'cocina', activo: true, createdAt: new Date().toISOString() },
+  { id: 'u1', usuario: 'admin', nombre: 'Administrador General', password: hashPw('admin123'), rol: 'admin', activo: true, created_at: new Date().toISOString() },
+  { id: 'u2', usuario: 'caja1', nombre: 'Sandra López', password: hashPw('caja123'), rol: 'caja', activo: true, created_at: new Date().toISOString() },
+  { id: 'u3', usuario: 'mesero1', nombre: 'Juan Pérez', password: hashPw('mesero123'), rol: 'mesero', activo: true, created_at: new Date().toISOString() },
+  { id: 'u4', usuario: 'mesero2', nombre: 'Laura Vargas', password: hashPw('mesero123'), rol: 'mesero', activo: true, created_at: new Date().toISOString() },
+  { id: 'u5', usuario: 'cocina1', nombre: 'Doña Rosa', password: hashPw('cocina123'), rol: 'cocina', activo: true, created_at: new Date().toISOString() },
 ];
 
 export const SEED_MENU = [
@@ -28,34 +28,34 @@ export const SEED_SUSCRIPTORES = [
     id: 's1', codigo: 'SUB-1001', nombre: 'María González',
     email: 'maria@email.com', cedula: '1234567890', telefono: '3001234567',
     password: hashPw('test1234'),
-    plan: 'p1', almuerzosRestantes: 12, fechaInicio: '2026-04-01',
-    fechaVencimiento: '2026-05-15', diasExtraCompensados: 0,
-    activo: true, permitirInvitados: true, createdAt: new Date().toISOString()
+    plan_id: 'p1', almuerzos_restantes: 12, fecha_inicio: '2026-04-01',
+    fecha_vencimiento: '2026-05-15', dias_xtra_compensados: 0,
+    activo: true, permitir_invitados: true, created_at: new Date().toISOString()
   },
   {
     id: 's2', codigo: 'SUB-1002', nombre: 'Carlos Ramírez',
     email: 'carlos@email.com', cedula: '9876543210', telefono: '3109876543',
     password: hashPw('test1234'),
-    plan: 'p2', almuerzosRestantes: 22, fechaInicio: '2026-04-05',
-    fechaVencimiento: '2026-05-20', diasExtraCompensados: 0,
-    activo: true, permitirInvitados: false, createdAt: new Date().toISOString()
+    plan_id: 'p2', almuerzos_restantes: 22, fecha_inicio: '2026-04-05',
+    fecha_vencimiento: '2026-05-20', dias_xtra_compensados: 0,  
+    activo: true, permitir_invitados: false, created_at: new Date().toISOString()
   },
   {
     id: 's3', codigo: 'SUB-1003', nombre: 'Ana Patricia López',
     email: 'ana@email.com', cedula: '1122334455', telefono: '3201112233',
     password: hashPw('test1234'),
-    plan: 'p1', almuerzosRestantes: 5, fechaInicio: '2026-04-01',
-    fechaVencimiento: '2026-04-30', diasExtraCompensados: 0,
-    activo: true, permitirInvitados: false, createdAt: new Date().toISOString()
+    plan_id: 'p1', almuerzos_restantes: 5, fecha_inicio: '2026-04-01',
+    fecha_vencimiento: '2026-04-30', dias_xtra_compensados: 0,
+    activo: true, permitir_invitados: false, created_at: new Date().toISOString()
   },
   // Sin plan (demo: registrado pero sin activar)
   {
     id: 's4', codigo: 'SUB-1004', nombre: 'Pedro Ruiz',
     email: 'pedro@email.com', cedula: '5544332211', telefono: '3001234599',
     password: hashPw('test1234'),
-    plan: null, almuerzosRestantes: 0, fechaInicio: null,
-    fechaVencimiento: null, diasExtraCompensados: 0,
-    activo: true, permitirInvitados: false, createdAt: new Date().toISOString()
+    plan_id: null, almuerzos_restantes: 0, fecha_inicio: null,
+    fecha_vencimiento: null, dias_xtra_compensados: 0,
+    activo: true, permitir_invitados: false, created_at: new Date().toISOString()
   },
 ];
 
@@ -80,6 +80,6 @@ export const SEED_NOTIFICATIONS = [
     titulo: 'Nuevo suscriptor registrado',
     mensaje: 'Pedro Ruiz se registró y espera activar su plan',
     suscriptorId: 's4',
-    createdAt: new Date(Date.now() - 2 * 3600000).toISOString()
+    created_at: new Date(Date.now() - 2 * 3600000).toISOString()
   }
 ];

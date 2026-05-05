@@ -139,14 +139,14 @@ function SubRegister({ onBack, onSuccess }) {
       cedula: form.cedula,
       telefono: form.telefono,
       password: hashPw(form.password),
-      plan: null,
-      almuerzosRestantes: 0,
-      fechaInicio: null,
-      fechaVencimiento: null,
-      diasExtraCompensados: 0,
+      plan_id: null,
+      almuerzos_restantes: 0,
+      fecha_inicio: null,
+      fecha_vencimiento: null,
+      dias_extra_compensados: 0,
       activo: true,
-      permitirInvitados: false,
-      createdAt: new Date().toISOString(),
+      permitir_invitados: false,
+      created_at: new Date().toISOString(),
     };
     await db.set('rest:subs', [...subs, newSub]);
 
@@ -158,7 +158,7 @@ function SubRegister({ onBack, onSuccess }) {
       titulo: 'Nuevo suscriptor registrado',
       mensaje: `${newSub.nombre} se registró y espera activar su plan`,
       suscriptorId: newSub.id,
-      createdAt: new Date().toISOString(),
+      created_at: new Date().toISOString(),
     }]);
 
     onSuccess({ type: 'suscriptor', data: newSub });

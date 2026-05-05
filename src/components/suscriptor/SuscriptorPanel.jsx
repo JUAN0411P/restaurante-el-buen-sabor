@@ -16,15 +16,15 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
   const [showExtension, setShowExtension] = useState(false);
 
   const sub = suscriptores.find(s => s.id === user.id) || user;
-  const plan = planes.find(p => p.id === sub.plan);
+  const plan = planes.find(p => p.id === sub.plan_id);
 
   const pendientesAprobacion = orders.filter(o =>
     o.estado === 'esperando-aprobacion' && o.suscriptor?.id === sub.id
   );
 
   const consumosMes = orders.filter(o => o.suscriptor?.id === sub.id && o.tipo === 'suscripcion');
-  const diasRestantes = sub.fechaVencimiento
-    ? Math.max(0, Math.ceil((new Date(sub.fechaVencimiento) - new Date()) / 86400000))
+  const diasRestantes = sub.fecha_vencimiento
+    ? Math.max(0, Math.ceil((new Date(sub.fecha_vencimiento) - new Date()) / 86400000))
     : 0;
   const subEvents = events.filter(e => e.suscriptorId === sub.id);
 
@@ -196,7 +196,7 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
       )}
 
       {/* Info invitados */}
-      {tab === 'resumen' && sub.permitirInvitados && (
+      {tab === 'resumen' && sub.permitir_invitados && (
         <div style={{ padding: 14, borderRadius: 12, background: T.plumSoft, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <Crown size={18} color={T.plum} style={{ flexShrink: 0, marginTop: 2 }} />
           <div>
@@ -221,7 +221,7 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
                   <KickerLabel>— tu plan activo</KickerLabel>
                   <div style={{ ...FontFraunces, fontSize: 24, color: T.text, marginTop: 4 }}>{plan.nombre}</div>
                   <div style={{ fontSize: 12, color: T.textSoft, marginTop: 4 }}>
-                    {plan.almuerzos} almuerzos · {plan.dias} días · vence {sub.fechaVencimiento}
+                    {plan.almuerzos} almuerzos · {plan.dias} días · vence {sub.fecha_vencimiento}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
@@ -236,11 +236,11 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }} className="grid grid-cols-3">
                 <PlanStat
                   label="ALMUERZOS"
-                  value={sub.almuerzosRestantes}
+                  value={sub.almuerzos_restantes}
                   total={plan.almuerzos}
                   bg={T.oliveSoft}
                   fg={T.olive}
-                  pct={(sub.almuerzosRestantes / plan.almuerzos) * 100}
+                  pct={(sub.almuerzos_restantes / plan.almuerzos) * 100}
                 />
                 <div style={{ padding: 14, background: T.mustardSoft, borderRadius: 12 }}>
                   <div style={{ fontSize: 10, color: T.mustard, ...FontMono, letterSpacing: '.1em', fontWeight: 600 }}>
@@ -253,7 +253,7 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
                     <span style={{ fontSize: 12, color: T.mustard, opacity: .7 }}>restantes</span>
                   </div>
                   <div style={{ fontSize: 10, color: T.textSoft, marginTop: 10, ...FontMono }}>
-                    VENCE {sub.fechaVencimiento}
+                    VENCE {sub.fecha_vencimiento}
                   </div>
                 </div>
                 <div style={{ padding: 14, background: T.plumSoft, borderRadius: 12 }}>
@@ -262,12 +262,12 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 4 }}>
                     <span style={{ ...FontFraunces, fontSize: 36, color: T.plum, lineHeight: 1, fontStyle: 'italic' }}>
-                      +{sub.diasExtraCompensados || 0}
+                      +{sub.dias_extra_compensados || 0}
                     </span>
                     <span style={{ fontSize: 12, color: T.plum, opacity: .7 }}>días</span>
                   </div>
                   <div style={{ fontSize: 10, color: T.textSoft, marginTop: 10, ...FontMono }}>
-                    {(sub.diasExtraCompensados || 0) >= MAX_DIAS_COMPENSADOS_AUTO ? 'MÁXIMO ALCANZADO' : `${MAX_DIAS_COMPENSADOS_AUTO - (sub.diasExtraCompensados || 0)} DISPONIBLES`}
+                    {(sub.dias_extra_compensados || 0) >= MAX_DIAS_COMPENSADOS_AUTO ? 'MÁXIMO ALCANZADO' : `${MAX_DIAS_COMPENSADOS_AUTO - (sub.dias_extra_compensados || 0)} DISPONIBLES`}
                   </div>
                 </div>
               </div>
@@ -356,7 +356,7 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
           <h3 style={{ ...FontFraunces, fontSize: 22, color: T.text, margin: '4px 0 16px 0' }}>
             Asistencias y avisos
           </h3>
-          <AttendanceCalendar events={subEvents} fechaInicio={sub.fechaInicio} fechaVencimiento={sub.fechaVencimiento} />
+          <AttendanceCalendar events={subEvents} fechaInicio={sub.fecha_inicio} fechaVencimiento={sub.fecha_vencimiento} />
         </Card>
       )}
 
@@ -453,7 +453,7 @@ function ExtensionRequestModal({ open, onClose, sub, plan, subEvents, refresh })
 
   const avisosCount = subEvents.filter(e => e.tipo === 'aviso-inasistencia').length;
   const inasistCount = subEvents.filter(e => e.tipo === 'inasistencia-sin-aviso').length;
-  const diasCompensados = sub.diasExtraCompensados || 0;
+  const diasCompensados = sub.dias_extra_compensados || 0;
 
   const enviarSolicitud = async () => {
     if (!motivo.trim() || dias < 1) return;
@@ -469,8 +469,8 @@ function ExtensionRequestModal({ open, onClose, sub, plan, subEvents, refresh })
         nombre: sub.nombre,
         codigo: sub.codigo,
         plan: plan?.nombre || '—',
-        almuerzosRestantes: sub.almuerzosRestantes,
-        fechaVencimiento: sub.fechaVencimiento,
+        almuerzosRestantes: sub.almuerzos_restantes,
+        fechaVencimiento: sub.fecha_vencimiento,
         diasYaCompensados: diasCompensados,
         avisosInasistencia: avisosCount,
         inasistenciasSinAviso: inasistCount,
@@ -492,8 +492,8 @@ function ExtensionRequestModal({ open, onClose, sub, plan, subEvents, refresh })
           <KickerLabel>— resumen de tu cuenta</KickerLabel>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, fontSize: 11, marginTop: 6 }}>
             <div><span style={{ color: T.textMute }}>Plan:</span> <strong style={{ color: T.text }}>{plan?.nombre || '—'}</strong></div>
-            <div><span style={{ color: T.textMute }}>Vence:</span> <strong style={{ color: T.text }}>{sub.fechaVencimiento || '—'}</strong></div>
-            <div><span style={{ color: T.textMute }}>Almuerzos rest.:</span> <strong style={{ color: T.text }}>{sub.almuerzosRestantes}</strong></div>
+            <div><span style={{ color: T.textMute }}>Vence:</span> <strong style={{ color: T.text }}>{sub.fecha_vencimiento || '—'}</strong></div>
+            <div><span style={{ color: T.textMute }}>Almuerzos rest.:</span> <strong style={{ color: T.text }}>{sub.almuerzos_restantes}</strong></div>
             <div><span style={{ color: T.textMute }}>Compensados:</span> <strong style={{ color: T.text }}>{diasCompensados} / {MAX_DIAS_COMPENSADOS_AUTO}</strong></div>
           </div>
         </div>

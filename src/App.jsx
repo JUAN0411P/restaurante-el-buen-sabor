@@ -93,7 +93,7 @@ export default function App() {
     const porCobrar = store.orders.filter(o =>
       o.fecha?.slice(0, 10) === today && o.estado === 'entregado' && !o.pagado && o.tipo === 'menu'
     ).length;
-    const subsSinPlan = store.suscriptores.filter(s => s.activo && !s.plan).length;
+    const subsSinPlan = store.suscriptores.filter(s => s.activo && !s.plan_id).length;
     const pendientesCocina = store.orders.filter(o => o.estado === 'pendiente' || o.estado === 'preparando').length;
     const alertasMesas = new Set(
       store.orders

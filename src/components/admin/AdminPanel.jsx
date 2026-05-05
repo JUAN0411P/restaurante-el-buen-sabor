@@ -36,7 +36,7 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
     refresh();
   };
   const toggleSubInvitados = async (subId) => {
-    await db.set('rest:subs', suscriptores.map(s => s.id === subId ? { ...s, permitirInvitados: !s.permitirInvitados } : s));
+    await db.set('rest:subs', suscriptores.map(s => s.id === subId ? { ...s, permitir_invitados: !s.permitir_invitados } : s));
     refresh();
   };
   const toggleSubActivo = async (subId) => {
@@ -88,7 +88,7 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
             <DashStat label="VENTAS MENÚ HOY" value={formatMoney(ventasMenu)} tone={T.terracotta} />
             <DashStat label="ALMUERZOS SUSC." value={ventasSubs} tone={T.olive} />
             <DashStat label="PLATOS SERVIDOS" value={platosVendidos} tone={T.mustard} />
-            <DashStat label="SUSCRIPTORES" value={suscriptores.filter(s => s.activo && s.plan).length} tone={T.plum} />
+            <DashStat label="SUSCRIPTORES" value={suscriptores.filter(s => s.activo && s.plan_id).length} tone={T.plum} />
           </div>
 
           <div style={{ display: 'grid', gap: 18 }} className="grid md:grid-cols-[1.3fr_1fr] grid-cols-1">
@@ -209,7 +209,7 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
           </div>
           <div className="space-y-2">
             {suscriptores.map(s => {
-              const plan = planes.find(p => p.id === s.plan);
+              const plan = planes.find(p => p.id === s.plan_id);
               return (
                 <Card key={s.id} padding="p-4"
                   onClick={() => {}}
@@ -219,23 +219,23 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h4 className="font-medium" style={{ color: T.text }}>{s.nombre}</h4>
                         <Tag color={s.activo ? 'green' : 'gray'}>{s.codigo}</Tag>
-                        {s.permitirInvitados && <Tag color="blue"><Crown size={10} /> Invita</Tag>}
-                        {!s.plan && <Tag color="amber">Sin plan</Tag>}
+                        {s.permitir_invitados && <Tag color="blue"><Crown size={10} /> Invita</Tag>}
+                        {!s.plan_id && <Tag color="amber">Sin plan</Tag>}
                       </div>
                       <p className="text-xs" style={{ color: T.textSoft }}>{s.email} · {s.cedula} · {s.telefono}</p>
                       <p className="text-xs mt-1" style={{ color: T.textSoft }}>
-                        {plan ? `${plan.nombre} · ${s.almuerzosRestantes} almuerzos · vence ${s.fechaVencimiento}` : 'Pendiente de activación'}
+                        {plan ? `${plan.nombre} · ${s.almuerzos_restantes} almuerzos · vence ${s.fecha_vencimiento}` : 'Pendiente de activación'}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: T.bg }}>
-                        <UserCheck size={14} style={{ color: s.permitirInvitados ? T.green : T.textMute }} />
+                        <UserCheck size={14} style={{ color: s.permitir_invitados ? T.green : T.textMute }} />
                         <span className="text-xs" style={{ color: T.text }}>Invitados</span>
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleSubInvitados(s.id); }}
                           className="relative w-9 h-5 rounded-full"
-                          style={{ backgroundColor: s.permitirInvitados ? T.green : T.border }}>
-                          <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all" style={{ left: s.permitirInvitados ? '18px' : '2px' }} />
+                          style={{ backgroundColor: s.permitir_invitados ? T.green : T.border }}>
+                          <div className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all" style={{ left: s.permitir_invitados ? '18px' : '2px' }} />
                         </button>
                       </div>
                       <Btn size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setDetailSub(s); }}>
@@ -255,7 +255,7 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
             open={!!detailSub}
             onClose={() => setDetailSub(null)}
             sub={detailSub}
-            plan={detailSub ? planes.find(p => p.id === detailSub.plan) : null}
+            plan={detailSub ? planes.find(p => p.id === detailSub.plan_id) : null}
             events={events}
             orders={orders}
             refresh={refresh}
