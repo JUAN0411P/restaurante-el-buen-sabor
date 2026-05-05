@@ -17,7 +17,7 @@ function StaffLogin({ onLogin }) {
     const users = await db.get('rest:users', []);
     const user = users.find(u => u.usuario.toLowerCase() === usuario.toLowerCase() && u.activo);
     if (!user) { setError('Usuario no encontrado o inactivo'); setLoading(false); return; }
-    if (user.password !== hashPw(password)) { setError('Contraseña incorrecta'); setLoading(false); return; }
+    if (user.password_hash !== hashPw(password)) { setError('Contraseña incorrecta'); setLoading(false); return; }
     await db.set('rest:users', users.map(u => u.id === user.id ? { ...u, lastLogin: new Date().toISOString() } : u));
     onLogin({ type: user.rol, data: user });
   };
