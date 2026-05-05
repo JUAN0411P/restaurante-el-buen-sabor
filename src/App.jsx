@@ -59,26 +59,29 @@ export default function App() {
 
   // Try to restore session on mount
   useEffect(() => {
-    (async () => {
-      const session = await db.get('rest:session');
-      if (!session) return;
-      if (session.type === 'suscriptor') {
-        const subs = await db.get('rest:subs', []);
-        const found = subs.find(s => s.id === session.id && s.activo);
-        if (found) setRole({ type: 'suscriptor', data: found });
-      } else {
-        const users = await db.get('rest:users', []);
-        const found = users.find(u => u.id === session.id && u.activo);
-        if (found) setRole({ type: found.rol, data: found });
-      }
-    })();
+    const session = JSON.parse(localStorage.getItem('rest:session') || 'null');
+    if (!session) return;
+    // La sesión se valida contra los datos ya cargados en el store
+    // Se maneja abajo cuando store.loaded cambia
   }, []);
 
-  // Persist session
   useEffect(() => {
-    if (role) db.set('rest:session', { type: role.type, id: role.data.id });
-    else db.del('rest:session');
+    if (role) localStorage.setItem('rest:session', JSON.stringify({ type: role.type, id: role.data.id }));
+    else localStorage.removeItem('rest:session');
   }, [role]);
+  // Agrega este useEffect para restaurar sesión una vez que el store cargue:
+  useEffect(() => {
+    if (!store.loaded || role) return;
+    const session = JSON.parse(localStorage.getItem('rest:session') || 'null');
+    if (!session) return;
+    if (session.type === 'suscriptor') {
+      const found = store.suscriptores.find(s => s.id === session.id && s.activo);
+      if (found) setRole({ type: 'suscriptor', data: found });
+    } else {
+      const found = store.users.find(u => u.id === session.id && u.activo);
+      if (found) setRole({ type: found.rol, data: found });
+    }
+  }, [store.loaded]);
 
   // Auto-refresh every 3 seconds when logged in (cross-role real-time sync)
   useEffect(() => {
