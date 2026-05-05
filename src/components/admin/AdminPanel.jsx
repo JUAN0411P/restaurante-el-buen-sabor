@@ -293,7 +293,7 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
                       <td className="px-4 py-3 font-medium" style={{ color: T.text }}>{u.nombre}</td>
                       <td className="px-4 py-3"><Tag color={u.rol === 'admin' ? 'accent' : 'blue'}>{u.rol}</Tag></td>
                       <td className="px-4 py-3"><Tag color={u.activo ? 'green' : 'gray'}>{u.activo ? 'Activo' : 'Inactivo'}</Tag></td>
-                      <td className="px-4 py-3 text-xs" style={{ color: T.textSoft }}>{u.lastLogin ? formatDateTime(u.lastLogin) : '—'}</td>
+                      <td className="px-4 py-3 text-xs" style={{ color: T.textSoft }}>{u.lastLogin || u.last_login ? formatDateTime(u.lastLogin || u.last_login) : '—'}</td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1">
                           <button onClick={() => setEditUser(u)} className="p-1.5 rounded" style={{ color: T.textSoft }}><Edit3 size={14} /></button>

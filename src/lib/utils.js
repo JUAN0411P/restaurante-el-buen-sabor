@@ -19,6 +19,37 @@ const TABLE_MAP = {
   'rest:notifications': 'notifications',
 };
 
+// ============ SNAKE ↔ CAMEL CONVERTERS ============
+// Al LEER de Supabase: snake_case → camelCase
+const snakeToCamel = (s) => s.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+const fromDB = (row) => {
+  if (!row || typeof row !== 'object') return row;
+  const out = Object.fromEntries(Object.entries(row).map(([k, v]) => [snakeToCamel(k), v]));
+  // Alias: password_hash → password (suscriptores usan .password en el código)
+  if (out.passwordHash !== undefined) out.password = out.passwordHash;
+  return out;
+};
+
+// Al ESCRIBIR a Supabase: camelCase → snake_case
+const camelToSnake = (s) => s.replace(/([A-Z])/g, (c) => `_${c.toLowerCase()}`);
+// Campos que NO deben convertirse (ya están en snake_case o son nombres propios)
+const KEEP_AS_IS = new Set(['id', 'email', 'cedula', 'codigo', 'nombre', 'rol',
+  'tipo', 'estado', 'activo', 'pagado', 'items', 'total', 'precio',
+  'descripcion', 'categoria', 'disponibles', 'vendidos', 'capacidad',
+  'numero', 'telefono', 'hora', 'fecha', 'notas', 'titulo', 'mensaje',
+  'leida', 'accion', 'dias', 'almuerzos', 'password', 'usuario',
+]);
+const toDB = (row) => {
+  if (!row || typeof row !== 'object') return row;
+  const out = {};
+  for (const [k, v] of Object.entries(row)) {
+    if (k === 'password') { out['password_hash'] = v; continue; } // alias inverso
+    const snake = KEEP_AS_IS.has(k) ? k : camelToSnake(k);
+    out[snake] = v;
+  }
+  return out;
+};
+
 export const db = {
   async get(key, fallback = null) {
     const table = TABLE_MAP[key];
@@ -26,7 +57,7 @@ export const db = {
     try {
       const { data, error } = await supabase.from(table).select('*');
       if (error) { console.error(`db.get(${key}):`, error.message); return fallback; }
-      return data ?? fallback;
+      return data ? data.map(fromDB) : fallback;
     } catch (e) {
       console.error(`db.get(${key}):`, e);
       return fallback;
@@ -37,7 +68,7 @@ export const db = {
     const table = TABLE_MAP[key];
     if (!table || !Array.isArray(rows)) return;
     try {
-      const { error } = await supabase.from(table).upsert(rows, { onConflict: 'id' });
+      const { error } = await supabase.from(table).upsert(rows.map(toDB), { onConflict: 'id' });
       if (error) console.error(`db.set(${key}):`, error.message);
     } catch (e) {
       console.error(`db.set(${key}):`, e);
@@ -48,7 +79,7 @@ export const db = {
     const table = TABLE_MAP[key];
     if (!table) return;
     try {
-      const { error } = await supabase.from(table).upsert(row, { onConflict: 'id' });
+      const { error } = await supabase.from(table).upsert(toDB(row), { onConflict: 'id' });
       if (error) console.error(`db.upsertOne(${key}):`, error.message);
     } catch (e) {
       console.error(`db.upsertOne(${key}):`, e);

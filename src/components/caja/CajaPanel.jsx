@@ -204,7 +204,7 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
           <div style={{ display: 'grid', gap: 12 }} className="grid md:grid-cols-2 grid-cols-1">
             {suscriptores.filter(s => s.plan_id).map(s => {
               const plan = planes.find(p => p.id === s.plan);
-              const venceProto = s.fecha_vencimiento && new Date(s.fechaVencimiento) < new Date(Date.now() + 7 * 86400000);
+              const venceProto = s.fecha_vencimiento && new Date(s.fecha_vencimiento) < new Date(Date.now() + 7 * 86400000);
               return (
                 <Card key={s.id} padding={16}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
