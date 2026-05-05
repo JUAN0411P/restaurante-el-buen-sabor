@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { User, Lock, Mail, Hash, Phone } from 'lucide-react';
 import { T } from '../../lib/tokens';
-import { db, hashPw, validators, formatMoney } from '../../lib/utils';
+import { db, hashPw, validators } from '../../lib/utils';
 import { Modal, Btn, Input, Select } from '../ui/primitives';
 
 // ========== STAFF USER FORM ==========
@@ -26,24 +26,17 @@ export function UserFormModal({ open, onClose, user, users, refresh }) {
     if (Object.keys(e).length > 0) return;
 
     if (user) {
-      const updated = users.map(u => u.id === user.id ? {
-        ...u,
-        usuario: form.usuario,
-        nombre: form.nombre,
-        rol: form.rol,
-        password: form.password ? hashPw(form.password) : u.password,
-      } : u);
-      await db.set('rest:users', updated);
+      const changes = { usuario: form.usuario, nombre: form.nombre, rol: form.rol };
+      if (form.password) changes.password_hash = hashPw(form.password);
+      await db.update('rest:users', user.id, changes);
     } else {
-      await db.set('rest:users', [...users, {
-        id: `u${Date.now()}`,
+      await db.insert('rest:users', {
         usuario: form.usuario.toLowerCase(),
         nombre: form.nombre,
-        password: hashPw(form.password),
+        password_hash: hashPw(form.password),
         rol: form.rol,
         activo: true,
-        createdAt: new Date().toISOString(),
-      }]);
+      });
     }
     onClose();
     refresh();
@@ -52,16 +45,19 @@ export function UserFormModal({ open, onClose, user, users, refresh }) {
   return (
     <Modal open={open} onClose={onClose} title={user ? 'Editar usuario' : 'Nuevo usuario'}>
       <div className="space-y-3">
-        <Input label="Usuario" value={form.usuario} onChange={(v) => setForm({ ...form, usuario: v })} icon={User} error={errors.usuario} hint="3-20 caracteres, minúsculas y números" />
-        <Input label="Nombre completo" value={form.nombre} onChange={(v) => setForm({ ...form, nombre: v })} error={errors.nombre} />
+        <Input label="Usuario" value={form.usuario} onChange={(v) => setForm({ ...form, usuario: v })}
+          icon={User} error={errors.usuario} hint="3-20 caracteres, minúsculas y números" />
+        <Input label="Nombre completo" value={form.nombre} onChange={(v) => setForm({ ...form, nombre: v })}
+          error={errors.nombre} />
         <Input label={user ? 'Nueva contraseña (vacío = mantener)' : 'Contraseña'} type="password"
-          value={form.password} onChange={(v) => setForm({ ...form, password: v })} icon={Lock} error={errors.password} />
+          value={form.password} onChange={(v) => setForm({ ...form, password: v })}
+          icon={Lock} error={errors.password} />
         <Select label="Rol" value={form.rol} onChange={(v) => setForm({ ...form, rol: v })}
           options={[
             { value: 'admin', label: 'Administrador' },
             { value: 'caja', label: 'Caja' },
             { value: 'mesero', label: 'Mesero' },
-            { value: 'cocina', label: 'Cocina' }
+            { value: 'cocina', label: 'Cocina' },
           ]} />
         <div className="flex justify-end gap-2 pt-2">
           <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
@@ -77,16 +73,31 @@ export function MenuItemFormModal({ open, onClose, item, menu, refresh }) {
   const [form, setForm] = useState({ nombre: '', descripcion: '', precio: 0, disponibles: 10, categoria: 'Plato fuerte' });
 
   useEffect(() => {
-    if (item) setForm(item);
+    if (item) setForm({ nombre: item.nombre, descripcion: item.descripcion, precio: item.precio,
+      disponibles: item.disponibles, categoria: item.categoria });
     else setForm({ nombre: '', descripcion: '', precio: 0, disponibles: 10, categoria: 'Plato fuerte' });
   }, [item, open]);
 
   const guardar = async () => {
     if (!form.nombre.trim()) return;
     if (item?.id) {
-      await db.set('rest:menu', menu.map(m => m.id === item.id ? form : m));
+      await db.update('rest:menu', item.id, {
+        nombre: form.nombre,
+        descripcion: form.descripcion,
+        precio: Number(form.precio),
+        disponibles: Number(form.disponibles),
+        categoria: form.categoria,
+      });
     } else {
-      await db.set('rest:menu', [...menu, { ...form, id: `m${Date.now()}`, vendidos: 0 }]);
+      await db.insert('rest:menu', {
+        nombre: form.nombre,
+        descripcion: form.descripcion,
+        precio: Number(form.precio),
+        disponibles: Number(form.disponibles),
+        categoria: form.categoria,
+        vendidos: 0,
+        activo: true,
+      });
     }
     onClose();
     refresh();
@@ -98,8 +109,10 @@ export function MenuItemFormModal({ open, onClose, item, menu, refresh }) {
         <Input label="Nombre" value={form.nombre} onChange={(v) => setForm({ ...form, nombre: v })} />
         <Input label="Descripción" value={form.descripcion} onChange={(v) => setForm({ ...form, descripcion: v })} />
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Precio" type="number" value={form.precio} onChange={(v) => setForm({ ...form, precio: +v })} />
-          <Input label="Disponibles" type="number" value={form.disponibles} onChange={(v) => setForm({ ...form, disponibles: +v })} />
+          <Input label="Precio" type="number" value={form.precio}
+            onChange={(v) => setForm({ ...form, precio: +v })} />
+          <Input label="Disponibles" type="number" value={form.disponibles}
+            onChange={(v) => setForm({ ...form, disponibles: +v })} />
         </div>
         <Select label="Categoría" value={form.categoria} onChange={(v) => setForm({ ...form, categoria: v })}
           options={[
@@ -121,25 +134,35 @@ export function MenuItemFormModal({ open, onClose, item, menu, refresh }) {
 export function NewSubModal({ open, onClose, suscriptores, refresh }) {
   const [form, setForm] = useState({ nombre: '', email: '', cedula: '', telefono: '', password: '' });
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setForm({ nombre: '', email: '', cedula: '', telefono: '', password: '' });
+      setErrors({});
+    }
+  }, [open]);
 
   const guardar = async () => {
     const e = {};
     ['nombre', 'email', 'cedula', 'telefono', 'password'].forEach(k => {
-      const r = validators[k](form[k] || ''); if (r !== true) e[k] = r;
+      const r = validators[k](form[k] || '');
+      if (r !== true) e[k] = r;
     });
     if (suscriptores.find(s => s.email?.toLowerCase() === form.email.toLowerCase())) e.email = 'Email ya registrado';
     if (suscriptores.find(s => s.cedula === form.cedula)) e.cedula = 'Cédula ya registrada';
     setErrors(e);
     if (Object.keys(e).length > 0) return;
 
-    const nuevo = {
-      id: `s${Date.now()}`,
+    setLoading(true);
+    const { error } = await db.insert('rest:subs', {
+      // Sin id → Postgres genera el UUID automáticamente
       codigo: `SUB-${1000 + suscriptores.length + 1}`,
       nombre: form.nombre.trim(),
       email: form.email.toLowerCase(),
       cedula: form.cedula,
       telefono: form.telefono,
-      password: hashPw(form.password),
+      password_hash: hashPw(form.password),  // ← nombre correcto de columna
       plan_id: null,
       almuerzos_restantes: 0,
       fecha_inicio: null,
@@ -147,11 +170,14 @@ export function NewSubModal({ open, onClose, suscriptores, refresh }) {
       dias_extra_compensados: 0,
       activo: true,
       permitir_invitados: false,
-      created_at: new Date().toISOString(),
-    };
-    await db.set('rest:subs', [...suscriptores, nuevo]);
-    setForm({ nombre: '', email: '', cedula: '', telefono: '', password: '' });
-    setErrors({});
+    });
+    setLoading(false);
+
+    if (error) {
+      setErrors({ submit: 'Error al guardar. Revisa la consola.' });
+      return;
+    }
+
     onClose();
     refresh();
   };
@@ -162,16 +188,26 @@ export function NewSubModal({ open, onClose, suscriptores, refresh }) {
         <p className="text-xs p-3 rounded-lg" style={{ backgroundColor: T.blueSoft, color: T.blue }}>
           Este formulario solo crea la cuenta. El plan se activa después en Caja.
         </p>
-        <Input label="Nombre completo" value={form.nombre} onChange={(v) => setForm({ ...form, nombre: v })} icon={User} error={errors.nombre} />
-        <Input label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} icon={Mail} error={errors.email} />
+        <Input label="Nombre completo" value={form.nombre}
+          onChange={(v) => setForm({ ...form, nombre: v })} icon={User} error={errors.nombre} />
+        <Input label="Email" value={form.email}
+          onChange={(v) => setForm({ ...form, email: v })} icon={Mail} error={errors.email} />
         <div className="grid grid-cols-2 gap-3">
-          <Input label="Cédula" value={form.cedula} onChange={(v) => setForm({ ...form, cedula: v })} icon={Hash} error={errors.cedula} />
-          <Input label="Teléfono" value={form.telefono} onChange={(v) => setForm({ ...form, telefono: v })} icon={Phone} error={errors.telefono} />
+          <Input label="Cédula" value={form.cedula}
+            onChange={(v) => setForm({ ...form, cedula: v })} icon={Hash} error={errors.cedula} />
+          <Input label="Teléfono" value={form.telefono}
+            onChange={(v) => setForm({ ...form, telefono: v })} icon={Phone} error={errors.telefono} />
         </div>
-        <Input label="Contraseña inicial" type="password" value={form.password} onChange={(v) => setForm({ ...form, password: v })} icon={Lock} error={errors.password} />
+        <Input label="Contraseña inicial" type="password" value={form.password}
+          onChange={(v) => setForm({ ...form, password: v })} icon={Lock} error={errors.password} />
+        {errors.submit && (
+          <p className="text-xs" style={{ color: T.red }}>{errors.submit}</p>
+        )}
         <div className="flex justify-end gap-2 pt-2">
           <Btn variant="ghost" onClick={onClose}>Cancelar</Btn>
-          <Btn onClick={guardar}>Registrar</Btn>
+          <Btn onClick={guardar} disabled={loading}>
+            {loading ? 'Guardando…' : 'Registrar'}
+          </Btn>
         </div>
       </div>
     </Modal>
