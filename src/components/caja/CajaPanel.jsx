@@ -20,17 +20,17 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
   const cobradas = ordersToday.filter(o => o.pagado);
   const totalDia = cobradas.reduce((s, o) => s + o.total, 0);
   const subsSinPlan = suscriptores.filter(s => s.activo && !s.plan_id);
-  const subsPorVencer = suscriptores.filter(s => s.activo && s.plan_id && s.fechaVencimiento && new Date(s.fechaVencimiento) < new Date(Date.now() + 7 * 86400000));
+  const subsPorVencer = suscriptores.filter(s => s.activo && s.plan_id && s.fecha_vencimiento && new Date(s.fecha_vencimiento) < new Date(Date.now() + 7 * 86400000));
 
   const procesarPago = async (order, metodo) => {
-    const next = orders.map(o => o.id === order.id ? { ...o, pagado: true, metodoPago: metodo, fechaPago: new Date().toISOString() } : o);
+    const next = orders.map(o => o.id === order.id ? { ...o, pagado: true, metodo_pago: metodo, fecha_pago: new Date().toISOString() } : o);
     await db.set('rest:orders', next);
 
     const mesa = mesas.find(m => m.numero === order.mesa);
     if (mesa) {
-      const comensalDelPedido = mesa.comensales.find(c => c.id === order.comensalId);
+      const comensalDelPedido = mesa.comensales.find(c => c.id === order.comensal_id);
       if (comensalDelPedido?.tipo === 'menu') {
-        const ordersDeEsteComensal = next.filter(o => o.comensalId === comensalDelPedido.id);
+        const ordersDeEsteComensal = next.filter(o => o.comensal_id === comensalDelPedido.id);
         const todosPagados = ordersDeEsteComensal.every(o => o.pagado);
         if (todosPagados) {
           const mesasNext = mesas.map(m => m.id === mesa.id ? {
@@ -70,7 +70,7 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
             <div className="ebs-stagger" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {porCobrar.map(o => {
                 const mesa = mesas.find(m => m.numero === o.mesa);
-                const comensal = mesa?.comensales.find(c => c.id === o.comensalId);
+                const comensal = mesa?.comensales.find(c => c.id === o.comensal_id);
                 return (
                   <Card key={o.id} padding={18} hover>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
@@ -129,7 +129,7 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
                         <Tag tone={o.tipo === 'suscripcion' ? 'olive' : o.tipo === 'plan' ? 'terra' : 'mustard'} size="xs">
                           {o.tipo === 'suscripcion' ? 'SUSC' : o.tipo === 'plan' ? 'PLAN' : 'MENÚ'}
                         </Tag>
-                        {o.metodoPago && <Tag tone="neutral" size="xs">{o.metodoPago}</Tag>}
+                        {o.metodo_pago && <Tag tone="neutral" size="xs">{o.metodo_pago}</Tag>}
                       </div>
                       <div style={{ fontSize: 12, color: T.textSoft }}>
                         {o.items.map(i => i.nombre).join(', ')}
@@ -310,7 +310,7 @@ function ActivarPlanModal({ open, onClose, sub, planes, suscriptores, refresh })
     venc.setDate(venc.getDate() + plan.dias);
 
     const next = suscriptores.map(s => s.id === sub.id ? {
-      ...s, plan_id: plan.id, almuerzosRestantes: plan.almuerzos,
+      ...s, plan_id: plan.id, almuerzos_restantes: plan.almuerzos,
       fecha_inicio: hoy.toISOString().slice(0, 10),
       fecha_vencimiento: venc.toISOString().slice(0, 10),
       dias_extra_compensados: 0,
@@ -326,9 +326,9 @@ function ActivarPlanModal({ open, onClose, sub, planes, suscriptores, refresh })
       total: plan.precio,
       estado: 'entregado',
       pagado: true,
-      metodoPago: metodo,
+      metodo_pago: metodo,
       fecha: new Date().toISOString(),
-      fechaPago: new Date().toISOString(),
+      fecha_pago: new Date().toISOString(),
       mesa: '—',
       mesero: 'Caja',
     }]);
@@ -337,7 +337,7 @@ function ActivarPlanModal({ open, onClose, sub, planes, suscriptores, refresh })
       tipo: 'aviso-general',
       titulo: 'Plan activado',
       mensaje: `Tu plan "${plan.nombre}" fue activado. Tienes ${plan.almuerzos} almuerzos hasta el ${venc.toISOString().slice(0, 10)}.`,
-      suscriptorId: sub.id,
+      suscriptor_id: sub.id,
     });
 
     onClose();

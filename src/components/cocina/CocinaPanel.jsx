@@ -147,10 +147,10 @@ function ColumnaCocina({ titulo, dotColor, tagTone, bgColor, orders: cola, revea
 
 function Ticket({ orden, posicion, esTurno, revealed, onReveal, onCambiarEstado, mesas }) {
   const mesa = mesas.find(m => m.numero === orden.mesa);
-  const comensal = mesa?.comensales.find(c => c.id === orden.comensalId);
+  const comensal = mesa?.comensales.find(c => c.id === orden.comensal_id);
   const min = minutesAgo(orden.fecha);
 
-  const tagInfo = orden.esInvitado
+  const tagInfo = orden.es_invitado
     ? { label: 'INVITADO', tone: 'plum' }
     : orden.tipo === 'suscripcion'
       ? { label: 'PLAN MENSUAL', tone: 'olive' }
@@ -201,7 +201,7 @@ function Ticket({ orden, posicion, esTurno, revealed, onReveal, onCambiarEstado,
           {comensal && (
             <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 8, ...FontMono }}>
               {comensal.nombre}
-              {orden.suscriptor && orden.esInvitado && ` · plan de ${orden.suscriptor.nombre}`}
+              {orden.suscriptor && orden.es_invitado && ` · plan de ${orden.suscriptor.nombre}`}
             </div>
           )}
           {/* Items */}

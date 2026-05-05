@@ -180,7 +180,7 @@ function ExtensionActions({ notif, refresh }) {
 
     const subs = await db.get('rest:subs', []);
     const updated = subs.map(s => {
-      if (s.id !== notif.suscriptorId) return s;
+      if (s.id !== notif.suscriptor_id) return s;
       const venc = s.fecha_vencimiento ? new Date(s.fecha_vencimiento) : new Date();
       venc.setDate(venc.getDate() + notif.dias);
       return {
@@ -201,7 +201,7 @@ function ExtensionActions({ notif, refresh }) {
       tipo: 'extension-aprobada',
       titulo: '✓ Tu extensión fue aprobada',
       mensaje: `El admin aprobó ${notif.dias} día(s) adicionales. Tu plan se extendió y tienes ${notif.dias} almuerzo(s) más.`,
-      suscriptorId: notif.suscriptorId,
+      suscriptor_id: notif.suscriptor_id,
     });
 
     refresh();
@@ -222,7 +222,7 @@ function ExtensionActions({ notif, refresh }) {
       mensaje: razon
         ? `El admin rechazó tu solicitud de ${notif.dias} día(s). Motivo: ${razon}`
         : `El admin rechazó tu solicitud de ${notif.dias} día(s).`,
-      suscriptorId: notif.suscriptorId,
+      suscriptor_id: notif.suscriptor_id,
     });
 
     refresh();

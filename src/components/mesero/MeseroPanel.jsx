@@ -55,7 +55,7 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
               tipo: 'pedido-rechazado',
               titulo: 'Pedido cancelado por falta de aprobación',
               mensaje: `Se canceló un pedido a tu nombre por no aprobarlo en ${APPROVAL_CANCEL_MINUTES} minutos.`,
-              suscriptorId: o.suscriptor.id,
+              suscriptor_id: o.suscriptor.id,
             });
           }
         }
@@ -90,7 +90,7 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
     setConfigPedido({
       tipo: comensal.tipo,
       nombre: comensal.nombre,
-      suscriptor: comensal.suscriptorId ? suscriptores.find(s => s.id === comensal.suscriptorId) : null,
+      suscriptor: comensal.suscriptor_id ? suscriptores.find(s => s.id === comensal.suscriptor_id) : null,
     });
     setPanelDerecho('pedido');
   };
@@ -113,7 +113,7 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
         id: `c${Date.now()}`,
         nombre: configPedido.nombre,
         tipo: tipoFinal,
-        suscriptorId: configPedido.suscriptor?.id || null,
+        suscriptor_id: configPedido.suscriptor?.id || null,
         addedAt: new Date().toISOString(),
       };
       const mesasCurrent = await db.get('rest:mesas', []);
@@ -130,11 +130,11 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
     const order = {
       id: `o${Date.now()}`,
       mesa: mesaSeleccionada.numero,
-      comensalId: comensal.id,
+      comensal_id: comensal.id,
       mesero: user.nombre,
       meseroId: user.id,
       tipo: tipoOrder,
-      esInvitado: comensal.tipo === 'invitado',
+      es_invitado: comensal.tipo === 'invitado',
       suscriptor: configPedido.suscriptor
         ? { id: configPedido.suscriptor.id, nombre: configPedido.suscriptor.nombre, codigo: configPedido.suscriptor.codigo }
         : null,
@@ -153,7 +153,7 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
         tipo: 'pedido-pendiente',
         titulo: comensal.tipo === 'invitado' ? '🔔 Pedido de invitado pendiente de aprobar' : '🔔 Pedido pendiente de aprobar',
         mensaje: `Mesa ${mesaSeleccionada.numero}: ${carrito.map(c => `${c.cantidad}× ${c.nombre}`).join(', ')}${comensal.tipo === 'invitado' ? ` (invitado: ${comensal.nombre})` : ''}.`,
-        suscriptorId: configPedido.suscriptor.id,
+        suscriptor_id: configPedido.suscriptor.id,
         orderId: order.id,
       });
     }
@@ -182,10 +182,10 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
     if (ord?.tipo === 'suscripcion' && ord.suscriptor?.id) {
       const events = await db.get('rest:events', []);
       const today = new Date().toISOString().slice(0, 10);
-      if (!events.find(e => e.suscriptorId === ord.suscriptor.id && e.fecha === today && e.tipo === 'asistencia')) {
+      if (!events.find(e => e.suscriptor_id === ord.suscriptor.id && e.fecha === today && e.tipo === 'asistencia')) {
         await db.set('rest:events', [...events, {
           id: `ev${Date.now()}`,
-          suscriptorId: ord.suscriptor.id,
+          suscriptor_id: ord.suscriptor.id,
           fecha: today,
           tipo: 'asistencia',
           orderId: ord.id,
@@ -453,10 +453,10 @@ function ColumnaMini({ titulo, dotColor, tagTone, bgColor, orders: cola, mesas, 
 
 function TicketMini({ orden, posicion, mesas, onMarcarEntregado }) {
   const mesa = mesas.find(m => m.numero === orden.mesa);
-  const comensal = mesa?.comensales.find(c => c.id === orden.comensalId);
+  const comensal = mesa?.comensales.find(c => c.id === orden.comensal_id);
   const min = minutesAgo(orden.fecha);
 
-  const tagInfo = orden.esInvitado
+  const tagInfo = orden.es_invitado
     ? { label: 'INVITADO', tone: 'plum' }
     : orden.tipo === 'suscripcion'
       ? { label: 'PLAN', tone: 'olive' }
@@ -538,4 +538,3 @@ function TicketMini({ orden, posicion, mesas, onMarcarEntregado }) {
     </div>
   );
 }
-

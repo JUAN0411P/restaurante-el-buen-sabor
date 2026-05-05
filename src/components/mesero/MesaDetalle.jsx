@@ -12,7 +12,7 @@ import { Card, Tag, Btn, KickerLabel } from '../ui/primitives';
 export function MesaDetalle({ mesaActiva, mesaData, orders, mesas, onAgregarComensal, onTomarPedido }) {
   const removerComensal = async (comensalId) => {
     if (!confirm('¿El comensal se va de la mesa?')) return;
-    const ordersComensal = orders.filter(o => o.comensalId === comensalId);
+    const ordersComensal = orders.filter(o => o.comensal_id === comensalId);
     const sinPagar = ordersComensal.filter(o => !o.pagado && o.tipo === 'menu');
     if (sinPagar.length > 0) { alert('Este comensal tiene cuentas pendientes de pago'); return; }
     await db.set('rest:mesas', mesas.map(m => m.id === mesaActiva.id ? {
@@ -42,7 +42,7 @@ export function MesaDetalle({ mesaActiva, mesaData, orders, mesas, onAgregarCome
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {mesa_data.comensales.map(c => {
-          const ordersC = orders.filter(o => o.comensalId === c.id);
+          const ordersC = orders.filter(o => o.comensal_id === c.id);
           const tones = { suscripcion: 'olive', menu: 'mustard', invitado: 'plum' };
           const totalC = ordersC.filter(o => !o.pagado && o.tipo === 'menu').reduce((s, o) => s + o.total, 0);
           const pendienteAprobacion = ordersC.find(o => o.estado === 'esperando-aprobacion');

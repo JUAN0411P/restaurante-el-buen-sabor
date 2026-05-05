@@ -17,7 +17,7 @@ function StaffLogin({ onLogin }) {
     const users = await db.get('rest:users', []);
     const user = users.find(u => u.usuario.toLowerCase() === usuario.toLowerCase() && u.activo);
     if (!user) { setError('Usuario no encontrado o inactivo'); setLoading(false); return; }
-    if (user.passwordHash !== hashPw(password)) { setError('Contraseña incorrecta'); setLoading(false); return; }
+    if (user.password_hash !== hashPw(password)) { setError('Contraseña incorrecta'); setLoading(false); return; }
     await db.set('rest:users', users.map(u => u.id === user.id ? { ...u, last_login: new Date().toISOString() } : u));
     onLogin({ type: user.rol, data: user });
   };
@@ -68,7 +68,7 @@ function SubLogin({ onLogin, onRegister }) {
       s.codigo?.toLowerCase() === identificador.toLowerCase()
     ) && s.activo);
     if (!sub) { setError('No se encontró ningún suscriptor con ese dato'); return; }
-    if (sub.password !== hashPw(password)) { setError('Contraseña incorrecta'); return; }
+    if (sub.password_hash !== hashPw(password)) { setError('Contraseña incorrecta'); return; }
     onLogin({ type: 'suscriptor', data: sub });
   };
 
@@ -138,7 +138,7 @@ function SubRegister({ onBack, onSuccess }) {
       email: form.email.toLowerCase(),
       cedula: form.cedula,
       telefono: form.telefono,
-      password: hashPw(form.password),
+      password_hash: hashPw(form.password),
       plan_id: null,
       almuerzos_restantes: 0,
       fecha_inicio: null,

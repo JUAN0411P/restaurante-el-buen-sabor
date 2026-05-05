@@ -26,7 +26,7 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
   const diasRestantes = sub.fecha_vencimiento
     ? Math.max(0, Math.ceil((new Date(sub.fecha_vencimiento) - new Date()) / 86400000))
     : 0;
-  const subEvents = events.filter(e => e.suscriptorId === sub.id);
+  const subEvents = events.filter(e => e.suscriptor_id === sub.id);
 
   const aprobarPedido = async (orderId) => {
     const allOrders = await db.get('rest:orders', []);
@@ -39,7 +39,7 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
 
     const allSubs = await db.get('rest:subs', []);
     await db.set('rest:subs', allSubs.map(s => s.id === sub.id
-      ? { ...s, almuerzosRestantes: Math.max(0, s.almuerzosRestantes - 1) }
+      ? { ...s, almuerzos_restantes: Math.max(0, s.almuerzos_restantes - 1) }
       : s));
 
     const allMenu = await db.get('rest:menu', []);
@@ -69,13 +69,13 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
     }
     const today = ahora.toISOString().slice(0, 10);
     const allEvents = await db.get('rest:events', []);
-    if (allEvents.find(e => e.suscriptorId === sub.id && e.fecha === today)) {
+    if (allEvents.find(e => e.suscriptor_id === sub.id && e.fecha === today)) {
       alert('Ya registraste un evento para hoy.');
       return;
     }
     await db.set('rest:events', [...allEvents, {
       id: `ev${Date.now()}`,
-      suscriptorId: sub.id,
+      suscriptor_id: sub.id,
       fecha: today,
       tipo: 'aviso-inasistencia',
       hora: `${String(hora).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}`,
@@ -176,7 +176,7 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
                     <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>
                       Mesa {o.mesa} · Mesero {o.mesero}
                     </span>
-                    {o.esInvitado && <Tag tone="plum" size="xs"><Heart size={9} /> INVITADO</Tag>}
+                    {o.es_invitado && <Tag tone="plum" size="xs"><Heart size={9} /> INVITADO</Tag>}
                   </div>
                   <div style={{ fontSize: 13, color: T.textSoft }}>
                     {o.items.map(i => `${i.cantidad}× ${i.nombre}`).join(' · ')}
@@ -379,7 +379,7 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
                         <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>
                           {o.items.map(i => i.nombre).join(', ')}
                         </span>
-                        {o.esInvitado && <Tag tone="plum" size="xs"><Heart size={9} /> INVITADO</Tag>}
+                        {o.es_invitado && <Tag tone="plum" size="xs"><Heart size={9} /> INVITADO</Tag>}
                       </div>
                       <p style={{ fontSize: 11, color: T.textSoft, margin: 0, ...FontMono }}>
                         Mesa {o.mesa} · {formatDateTime(o.fecha)}
@@ -462,15 +462,15 @@ function ExtensionRequestModal({ open, onClose, sub, plan, subEvents, refresh })
       tipo: 'solicitud-extension',
       titulo: `Solicitud de extensión de ${sub.nombre}`,
       mensaje: `${sub.nombre} solicita ${dias} día(s) adicional(es). Motivo: ${motivo}`,
-      suscriptorId: sub.id,
+      suscriptor_id: sub.id,
       dias,
       motivo,
       snapshot: {
         nombre: sub.nombre,
         codigo: sub.codigo,
         plan: plan?.nombre || '—',
-        almuerzosRestantes: sub.almuerzos_restantes,
-        fechaVencimiento: sub.fecha_vencimiento,
+        almuerzos_restantes: sub.almuerzos_restantes,
+        fecha_vencimiento: sub.fecha_vencimiento,
         diasYaCompensados: diasCompensados,
         avisosInasistencia: avisosCount,
         inasistenciasSinAviso: inasistCount,

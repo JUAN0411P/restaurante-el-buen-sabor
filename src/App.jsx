@@ -111,7 +111,7 @@ export default function App() {
   const relevantNotifs = useMemo(() => {
     if (!role) return [];
     if (role.type === 'suscriptor') {
-      return store.notifications.filter(n => n.suscriptorId === role.data.id);
+      return store.notifications.filter(n => n.suscriptor_id === role.data.id);
     }
     if (role.type === 'admin') {
       return store.notifications.filter(n =>
