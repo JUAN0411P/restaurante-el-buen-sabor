@@ -123,9 +123,7 @@ function SubRegister({ onBack, onSuccess }) {
     setErrors(e);
     if (Object.keys(e).length > 0) return;
 
-    
-  };
-  // En SubRegister, función handleSubmit — reemplaza desde "const subs = await..." hasta el onSuccess:
+    const subs = await db.get('rest:subs', []);
 
     const { data: newSub, error } = await db.insert('rest:subs', {
       codigo: `SUB-${1000 + subs.length + 1}`,
@@ -133,7 +131,7 @@ function SubRegister({ onBack, onSuccess }) {
       email: form.email.toLowerCase(),
       cedula: form.cedula,
       telefono: form.telefono,
-      password_hash: hashPw(form.password),   // ← corregido
+      password_hash: hashPw(form.password),
       plan_id: null,
       almuerzos_restantes: 0,
       fecha_inicio: null,
@@ -142,6 +140,7 @@ function SubRegister({ onBack, onSuccess }) {
       activo: true,
       permitir_invitados: false,
     });
+
     if (error) { setSubmitError('Error al registrar. Intenta de nuevo.'); return; }
 
     await db.insert('rest:notifications', {
@@ -149,10 +148,11 @@ function SubRegister({ onBack, onSuccess }) {
       leida: false,
       titulo: 'Nuevo suscriptor registrado',
       mensaje: `${newSub.nombre} se registró y espera activar su plan`,
-      suscriptor_id: newSub.id,   // ← columna correcta (era suscriptorId)
+      suscriptor_id: newSub.id,
     });
 
     onSuccess({ type: 'suscriptor', data: newSub });
+  };
 
   return (
     <Card padding={24}>
@@ -280,7 +280,6 @@ export function AuthScreen({ onLogin }) {
         }}
         className="lg:px-[72px]"
       >
-        {/* Mobile brand header */}
         <div className="lg:hidden" style={{ marginBottom: 32, textAlign: 'center' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
             <div style={{ width: 40, height: 40, borderRadius: 12, background: T.olive, display: 'grid', placeItems: 'center' }}>
@@ -296,7 +295,6 @@ export function AuthScreen({ onLogin }) {
             Ingresa a tu cuenta
           </h2>
 
-          {/* Tab pill */}
           <div
             style={{
               display: 'flex',
@@ -308,38 +306,8 @@ export function AuthScreen({ onLogin }) {
               width: 'fit-content',
             }}
           >
-            <button
-              onClick={() => setTab('staff')}
-              style={{
-                padding: '8px 18px',
-                borderRadius: 8,
-                background: tab === 'staff' ? T.card : 'transparent',
-                fontSize: 13,
-                fontWeight: tab === 'staff' ? 600 : 500,
-                color: tab === 'staff' ? T.text : T.textSoft,
-                boxShadow: tab === 'staff' ? '0 1px 2px rgba(0,0,0,.04)' : 'none',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              Personal
-            </button>
-            <button
-              onClick={() => setTab('suscriptor')}
-              style={{
-                padding: '8px 18px',
-                borderRadius: 8,
-                background: tab === 'suscriptor' ? T.card : 'transparent',
-                fontSize: 13,
-                fontWeight: tab === 'suscriptor' ? 600 : 500,
-                color: tab === 'suscriptor' ? T.text : T.textSoft,
-                boxShadow: tab === 'suscriptor' ? '0 1px 2px rgba(0,0,0,.04)' : 'none',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              Suscriptor
-            </button>
+            <button onClick={() => setTab('staff')}>Personal</button>
+            <button onClick={() => setTab('suscriptor')}>Suscriptor</button>
           </div>
 
           {tab === 'staff'
