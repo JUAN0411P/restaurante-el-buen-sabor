@@ -19,9 +19,8 @@ export function AgregarComensalFlow({ mesaActiva, mesaData, suscriptores, onCanc
 
   // ¿Cuántos pasos en total dependiendo del flow?
   const totalSteps = tipoComensal === 'menu' ? 2 : tipoComensal === 'suscripcion' ? 3 : 1;
-
   const subsFiltrados = suscriptores.filter(s =>
-    s.activo && s.plan && s.almuerzos_restantes > 0 &&
+    s.activo && s.plan_id && s.almuerzos_restantes > 0 &&
     (s.nombre.toLowerCase().includes(searchSub.toLowerCase())
       || s.codigo?.toLowerCase().includes(searchSub.toLowerCase())
       || s.cedula?.includes(searchSub))

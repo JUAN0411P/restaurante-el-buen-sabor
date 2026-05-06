@@ -89,90 +89,161 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
   };
 
   const onComensalConfig = async (config) => {
-    // Si es un comensal nuevo (viene del flow de agregar), insertarlo en la tabla comensales
-    if (!comensalActivo) {
-      const tipoFinal = config.tipo === 'invitado' ? 'invitado' : config.tipo;
-      const { data: nuevoComensal, error } = await db.insert('rest:comensales', {
-        mesa_id: mesaSeleccionada.id,
-        nombre: config.nombre,
-        tipo: tipoFinal,
-        suscriptor_id: config.suscriptor?.id || null,
-      });
-      if (error) { console.error('Error creando comensal:', error); return; }
-      setComensalActivo(nuevoComensal);
-    }
+    // // Si es un comensal nuevo (viene del flow de agregar), insertarlo en la tabla comensales
+    // if (!comensalActivo) {
+    //   const tipoFinal = config.tipo === 'invitado' ? 'invitado' : config.tipo;
+    //   const { data: nuevoComensal, error } = await db.insert('rest:comensales', {
+    //     mesa_id: mesaSeleccionada.id,
+    //     nombre: config.nombre,
+    //     tipo: tipoFinal,
+    //     suscriptor_id: config.suscriptor?.id || null,
+    //   });
+    //   if (error) { console.error('Error creando comensal:', error); return; }
+    //   setComensalActivo(nuevoComensal);
+    // }
     setConfigPedido(config);
+    setComensalActivo(null);
     setPanelDerecho('pedido');
   };
-
   const enviarPedido = async (carrito) => {
     if (carrito.length === 0) return;
 
-    // Si el comensal no existe todavía (viene directo del flow), crearlo
-    let comensal = comensalActivo;
-    if (!comensal) {
-      const tipoFinal = configPedido.tipo === 'invitado' ? 'invitado' : configPedido.tipo;
-      const { data: nuevoComensal, error } = await db.insert('rest:comensales', {
-        mesa_id: mesaSeleccionada.id,
-        nombre: configPedido.nombre,
-        tipo: tipoFinal,
-        suscriptor_id: configPedido.suscriptor?.id || null,
-      });
-      if (error) { console.error('Error creando comensal:', error); return; }
-      comensal = nuevoComensal;
+    // 1. Crear comensal en Supabase
+    const tipoFinal = configPedido.tipo === 'invitado' ? 'invitado' : configPedido.tipo;
+    const { data: comensal, error: errComensal } = await db.insert('rest:comensales', {
+      mesa_id: mesaSeleccionada.id,
+      nombre: configPedido.nombre,
+      tipo: tipoFinal,
+      suscriptor_id: configPedido.suscriptor?.id || null,
+    });
+    if (errComensal || !comensal) {
+      console.error('Error creando comensal:', errComensal);
+      return;
     }
 
-    const requiereAprobacion = comensal.tipo === 'suscripcion' || comensal.tipo === 'invitado';
-    const esSuscripcion = requiereAprobacion;
-    const tipoOrder = esSuscripcion ? 'suscripcion' : 'menu';
-    const total = esSuscripcion ? 0 : carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+    // 2. Crear la orden
+    const requiereAprobacion = tipoFinal === 'suscripcion' || tipoFinal === 'invitado';
+    const total = requiereAprobacion ? 0 : carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
 
-    // Insertar la orden — sin id, Postgres genera el UUID
-    const { data: order, error: orderError } = await db.insert('rest:orders', {
+    const { data: order, error: errOrder } = await db.insert('rest:orders', {
       comensal_id: comensal.id,
       mesa_numero: mesaSeleccionada.numero,
       mesero_id: user.id,
       suscriptor_id: configPedido.suscriptor?.id || null,
-      tipo: tipoOrder,
-      es_invitado: comensal.tipo === 'invitado',
+      tipo: requiereAprobacion ? 'suscripcion' : 'menu',
+      es_invitado: tipoFinal === 'invitado',
       items: carrito.map(c => ({ id: c.id, nombre: c.nombre, cantidad: c.cantidad, precio: c.precio })),
       total,
       estado: requiereAprobacion ? 'esperando-aprobacion' : 'pendiente',
       pagado: false,
     });
+    if (errOrder || !order) {
+      console.error('Error creando orden:', errOrder);
+      return;
+    }
 
-    if (orderError) { console.error('Error creando orden:', orderError); return; }
-
-    // Notificar al suscriptor si requiere aprobación
+    // 3. Notificar si requiere aprobación
     if (requiereAprobacion && configPedido.suscriptor) {
       await crearNotificacion({
         tipo: 'pedido-pendiente',
-        titulo: comensal.tipo === 'invitado'
+        titulo: tipoFinal === 'invitado'
           ? '🔔 Pedido de invitado pendiente de aprobar'
           : '🔔 Pedido pendiente de aprobar',
-        mensaje: `Mesa ${mesaSeleccionada.numero}: ${carrito.map(c => `${c.cantidad}× ${c.nombre}`).join(', ')}${comensal.tipo === 'invitado' ? ` (invitado: ${comensal.nombre})` : ''}.`,
+        mensaje: `Mesa ${mesaSeleccionada.numero}: ${carrito.map(c => `${c.cantidad}× ${c.nombre}`).join(', ')}.`,
         suscriptor_id: configPedido.suscriptor.id,
         order_id: order.id,
       });
     }
 
-    // Descontar disponibles del menú directamente
+    // 4. Descontar disponibles del menú
     if (!requiereAprobacion) {
       await Promise.all(
-        carrito.map(c =>
-          db.update('rest:menu', c.id, {
-            disponibles: Math.max(0, (menu.find(m => m.id === c.id)?.disponibles || 0) - c.cantidad),
-            vendidos: (menu.find(m => m.id === c.id)?.vendidos || 0) + c.cantidad,
-          })
-        )
+        carrito.map(c => {
+          const itemMenu = menu.find(m => m.id === c.id);
+          if (!itemMenu) return Promise.resolve();
+          return db.update('rest:menu', c.id, {
+            disponibles: Math.max(0, itemMenu.disponibles - c.cantidad),
+            vendidos: (itemMenu.vendidos || 0) + c.cantidad,
+          });
+        })
       );
     }
 
+    // 5. Solo al final resetear estado y refrescar
     setPanelDerecho('detalle');
     setComensalActivo(null);
     setConfigPedido(null);
-    refresh();
+    refresh();  // ← una sola vez, al final
   };
+
+  // const enviarPedido = async (carrito) => {
+  //   if (carrito.length === 0) return;
+
+  //   // Si el comensal no existe todavía (viene directo del flow), crearlo
+  //   let comensal = comensalActivo;
+  //   if (!comensal) {
+  //     const tipoFinal = configPedido.tipo === 'invitado' ? 'invitado' : configPedido.tipo;
+  //     const { data: nuevoComensal, error } = await db.insert('rest:comensales', {
+  //       mesa_id: mesaSeleccionada.id,
+  //       nombre: configPedido.nombre,
+  //       tipo: tipoFinal,
+  //       suscriptor_id: configPedido.suscriptor?.id || null,
+  //     });
+  //     if (error) { console.error('Error creando comensal:', error); return; }
+  //     comensal = nuevoComensal;
+  //   }
+
+  //   const requiereAprobacion = comensal.tipo === 'suscripcion' || comensal.tipo === 'invitado';
+  //   const esSuscripcion = requiereAprobacion;
+  //   const tipoOrder = esSuscripcion ? 'suscripcion' : 'menu';
+  //   const total = esSuscripcion ? 0 : carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+
+  //   // Insertar la orden — sin id, Postgres genera el UUID
+  //   const { data: order, error: orderError } = await db.insert('rest:orders', {
+  //     comensal_id: comensal.id,
+  //     mesa_numero: mesaSeleccionada.numero,
+  //     mesero_id: user.id,
+  //     suscriptor_id: configPedido.suscriptor?.id || null,
+  //     tipo: tipoOrder,
+  //     es_invitado: comensal.tipo === 'invitado',
+  //     items: carrito.map(c => ({ id: c.id, nombre: c.nombre, cantidad: c.cantidad, precio: c.precio })),
+  //     total,
+  //     estado: requiereAprobacion ? 'esperando-aprobacion' : 'pendiente',
+  //     pagado: false,
+  //   });
+
+  //   if (orderError) { console.error('Error creando orden:', orderError); return; }
+
+  //   // Notificar al suscriptor si requiere aprobación
+  //   if (requiereAprobacion && configPedido.suscriptor) {
+  //     await crearNotificacion({
+  //       tipo: 'pedido-pendiente',
+  //       titulo: comensal.tipo === 'invitado'
+  //         ? '🔔 Pedido de invitado pendiente de aprobar'
+  //         : '🔔 Pedido pendiente de aprobar',
+  //       mensaje: `Mesa ${mesaSeleccionada.numero}: ${carrito.map(c => `${c.cantidad}× ${c.nombre}`).join(', ')}${comensal.tipo === 'invitado' ? ` (invitado: ${comensal.nombre})` : ''}.`,
+  //       suscriptor_id: configPedido.suscriptor.id,
+  //       order_id: order.id,
+  //     });
+  //   }
+
+  //   // Descontar disponibles del menú directamente
+  //   if (!requiereAprobacion) {
+  //     await Promise.all(
+  //       carrito.map(c =>
+  //         db.update('rest:menu', c.id, {
+  //           disponibles: Math.max(0, (menu.find(m => m.id === c.id)?.disponibles || 0) - c.cantidad),
+  //           vendidos: (menu.find(m => m.id === c.id)?.vendidos || 0) + c.cantidad,
+  //         })
+  //       )
+  //     );
+  //   }
+
+  //   setPanelDerecho('detalle');
+  //   setComensalActivo(null);
+  //   setConfigPedido(null);
+  //   refresh();
+  // };
 
   const marcarEntregado = async (orderId) => {
     await db.update('rest:orders', orderId, {
