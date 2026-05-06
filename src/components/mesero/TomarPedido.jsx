@@ -7,7 +7,6 @@ import { crearNotificacion } from '../ui/NotificationsPanel';
 
 
 
-
 export function TomarPedido({ mesaActiva, config, menu, enviando, onCancel, onEnviar }) {
   const [carrito, setCarrito] = useState([]);
 

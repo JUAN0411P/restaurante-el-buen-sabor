@@ -169,7 +169,7 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
           console.log('📨 Enviando notificación a suscriptor:', configPedido.suscriptor.id);
 
           await crearNotificacion({
-            tipo: 'pedido-pendiente',
+            tipo: 'pedido-aprobacion',
             titulo: tipoFinal === 'invitado'
               ? '🔔 Pedido de invitado pendiente'
               : '🔔 Pedido pendiente',
