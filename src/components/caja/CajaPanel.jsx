@@ -3,7 +3,7 @@ import {
   Plus, Banknote, CreditCard, AlertCircle, CheckCircle2, ArrowRight, Wallet
 } from 'lucide-react';
 import { T, FontFraunces, FontMono } from '../../lib/tokens';
-import { db, formatMoney, todayISO } from '../../lib/utils';
+import { db, supabase, formatMoney, todayISO } from '../../lib/utils';
 import { Card, Tag, Btn, Modal, Select, EmptyState, KickerLabel } from '../ui/primitives';
 import { NewSubModal } from '../admin/AdminModals';
 import { crearNotificacion } from '../ui/NotificationsPanel';
@@ -23,23 +23,11 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
   const subsPorVencer = suscriptores.filter(s => s.activo && s.plan_id && s.fecha_vencimiento && new Date(s.fecha_vencimiento) < new Date(Date.now() + 7 * 86400000));
 
   const procesarPago = async (order, metodo) => {
-    const next = orders.map(o => o.id === order.id ? { ...o, pagado: true, metodo_pago: metodo, fecha_pago: new Date().toISOString() } : o);
-    await db.set('rest:orders', next);
-
-    const mesa = mesas.find(m => m.numero === order.mesa);
-    if (mesa) {
-      const comensalDelPedido = mesa.comensales.find(c => c.id === order.comensal_id);
-      if (comensalDelPedido?.tipo === 'menu') {
-        const ordersDeEsteComensal = next.filter(o => o.comensal_id === comensalDelPedido.id);
-        const todosPagados = ordersDeEsteComensal.every(o => o.pagado);
-        if (todosPagados) {
-          const mesasNext = mesas.map(m => m.id === mesa.id ? {
-            ...m, comensales: m.comensales.filter(c => c.id !== comensalDelPedido.id)
-          } : m);
-          await db.set('rest:mesas', mesasNext);
-        }
-      }
-    }
+    // Marcar la orden como pagada en Supabase
+    await supabase
+      .from('orders')
+      .update({ pagado: true, metodo_pago: metodo, fecha_pago: new Date().toISOString() })
+      .eq('id', order.id);
 
     setCobrar(null);
     refresh();
@@ -69,23 +57,23 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
           ) : (
             <div className="ebs-stagger" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {porCobrar.map(o => {
-                const mesa = mesas.find(m => m.numero === o.mesa);
-                const comensal = mesa?.comensales.find(c => c.id === o.comensal_id);
+                const mesa = mesas.find(m => m.numero === o.mesa_numero);
+                const comensal = (mesa?.comensales || []).find(c => c.id === o.comensal_id);
                 return (
                   <Card key={o.id} padding={18} hover>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
                       <div style={{ width: 48, height: 48, borderRadius: 12, background: T.mustardSoft, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-                        <span style={{ ...FontFraunces, fontSize: 22, color: T.mustard }}>{o.mesa}</span>
+                        <span style={{ ...FontFraunces, fontSize: 22, color: T.mustard }}>{o.mesa_numero}</span>
                       </div>
                       <div style={{ flex: 1, minWidth: 200 }}>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Mesa {o.mesa}</span>
+                          <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Mesa {o.mesa_numero}</span>
                           <Tag tone="mustard" size="xs">MENÚ DÍA</Tag>
                           {comensal && <span style={{ fontSize: 11, color: T.textSoft }}>· {comensal.nombre}</span>}
-                          <span style={{ fontSize: 11, color: T.textSoft, ...FontMono }}>· mesero {o.mesero}</span>
+                          <span style={{ fontSize: 11, color: T.textSoft, ...FontMono }}>· mesero {o.mesero_id}</span>
                         </div>
                         <div style={{ fontSize: 13, color: T.textSoft }}>
-                          {o.items.map(i => `${i.cantidad}× ${i.nombre}`).join(' · ')}
+                          {(o.items || []).map(i => `${i.cantidad}× ${i.nombre}`).join(' · ')}
                         </div>
                       </div>
                       <div style={{ ...FontFraunces, fontSize: 26, color: T.terracotta, fontStyle: 'italic' }}>
@@ -122,7 +110,7 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
                     <div style={{ width: 36, height: 36, borderRadius: 10, background: o.tipo === 'suscripcion' ? T.oliveSoft : T.mustardSoft, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                       {o.tipo === 'plan'
                         ? <Wallet size={16} color={T.terracotta} />
-                        : <span style={{ ...FontFraunces, fontSize: 14, color: o.tipo === 'suscripcion' ? T.olive : T.mustard }}>{o.mesa}</span>}
+                        : <span style={{ ...FontFraunces, fontSize: 14, color: o.tipo === 'suscripcion' ? T.olive : T.mustard }}>{o.mesa_numero}</span>}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2, flexWrap: 'wrap' }}>
@@ -242,7 +230,7 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
             <div style={{ padding: 16, borderRadius: 12, marginBottom: 16, background: T.bg, border: `1px solid ${T.border}` }}>
               <KickerLabel>— detalle del pedido</KickerLabel>
               <p style={{ fontSize: 12, color: T.textSoft, margin: '0 0 8px 0', ...FontMono }}>
-                Mesa {cobrar.mesa} {cobrar._comensal && `· ${cobrar._comensal.nombre}`} · mesero {cobrar.mesero}
+                Mesa {cobrar.mesa_numero} {cobrar._comensal && `· ${cobrar._comensal.nombre}`} · mesero {cobrar.mesero_id}
               </p>
               {cobrar.items.map((i, idx) => (
                 <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0' }}>
