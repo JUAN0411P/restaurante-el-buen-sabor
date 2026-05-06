@@ -19,10 +19,10 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
   const plan = planes.find(p => p.id === sub.plan_id);
 
   const pendientesAprobacion = orders.filter(o =>
-    o.estado === 'esperando-aprobacion' && o.suscriptor?.id === sub.id
+    o.estado === 'esperando-aprobacion' && (o.suscriptor?.id === sub.id || o.suscriptor_id === sub.id)
   );
 
-  const consumosMes = orders.filter(o => o.suscriptor?.id === sub.id && o.tipo === 'suscripcion');
+  const consumosMes = orders.filter(o => (o.suscriptor_id === sub.id || o.suscriptor?.id === sub.id) && o.tipo === 'suscripcion');
   const diasRestantes = sub.fecha_vencimiento
     ? Math.max(0, Math.ceil((new Date(sub.fecha_vencimiento) - new Date()) / 86400000))
     : 0;
