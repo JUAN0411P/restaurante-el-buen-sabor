@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   UtensilsCrossed, Calendar, Check, X, Edit3, AlertTriangle,
   Crown, Heart, Clock, Bell, User, Mail, Lock, Phone, QrCode
 } from 'lucide-react';
 import { T, FontFraunces, FontMono } from '../../lib/tokens';
-import { db, formatMoney, formatDateTime, hashPw, validators, AVISO_INASISTENCIA_HORA, MAX_DIAS_COMPENSADOS_AUTO, APPROVAL_CANCEL_MINUTES } from '../../lib/utils';
-import { Card, Tag, Btn, Modal, Input, EmptyState, KickerLabel, useAnimatedNumber, useCountdown, RevealOnScroll } from '../ui/primitives';
+import { db, formatMoney, formatDateTime, hashPw, validators, minutesAgo, AVISO_INASISTENCIA_HORA, MAX_DIAS_COMPENSADOS_AUTO, APPROVAL_CANCEL_MINUTES } from '../../lib/utils';
+import { Card, Tag, Btn, Modal, Input, EmptyState, KickerLabel } from '../ui/primitives';
 import { AttendanceCalendar } from '../ui/AttendanceCalendar';
 import { crearNotificacion } from '../ui/NotificationsPanel';
 
@@ -14,18 +14,17 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
   const tab = activeTab || 'resumen';
   const [showAvisoInasistencia, setShowAvisoInasistencia] = useState(false);
   const [showExtension, setShowExtension] = useState(false);
-  const [celebrate, setCelebrate] = useState(null); // orderId que se acaba de aprobar
 
   const sub = suscriptores.find(s => s.id === user.id) || user;
-  const plan = planes.find(p => p.id === sub.plan);
+  const plan = planes.find(p => p.id === sub.plan_id);
 
   const pendientesAprobacion = orders.filter(o =>
     o.estado === 'esperando-aprobacion' && o.suscriptor?.id === sub.id
   );
 
   const consumosMes = orders.filter(o => o.suscriptor?.id === sub.id && o.tipo === 'suscripcion');
-  const diasRestantes = sub.fechaVencimiento
-    ? Math.max(0, Math.ceil((new Date(sub.fechaVencimiento) - new Date()) / 86400000))
+  const diasRestantes = sub.fecha_vencimiento
+    ? Math.max(0, Math.ceil((new Date(sub.fecha_vencimiento) - new Date()) / 86400000))
     : 0;
   const subEvents = events.filter(e => e.suscriptorId === sub.id);
 
@@ -33,10 +32,6 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
     const allOrders = await db.get('rest:orders', []);
     const order = allOrders.find(o => o.id === orderId);
     if (!order) return;
-
-    // Trigger celebration animation
-    setCelebrate(orderId);
-    setTimeout(() => setCelebrate(null), 1100);
 
     await db.set('rest:orders', allOrders.map(o => o.id === orderId
       ? { ...o, estado: 'pendiente', aprobadoEn: new Date().toISOString() }
@@ -139,8 +134,8 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
   }
 
   return (
-    <div className="space-y-5 ebs-stagger">
-      <div className="ebs-enter" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+    <div className="space-y-5">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <KickerLabel>— tu mensualidad · cuenta {sub.codigo}</KickerLabel>
           <h2 style={{ ...FontFraunces, fontSize: 30, color: T.text, margin: 0, letterSpacing: '-0.015em' }}>
@@ -153,23 +148,55 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
       {/* HERO ALERT — pedidos pendientes */}
       {pendientesAprobacion.length > 0 && (
         <div className="space-y-3">
-          {pendientesAprobacion.map(o => (
-            <PendingOrderCard
-              key={o.id}
-              order={o}
-              celebrating={celebrate === o.id}
-              onAprobar={() => aprobarPedido(o.id)}
-              onRechazar={() => rechazarPedido(o.id)}
-            />
-          ))}
+          {pendientesAprobacion.map(o => {
+            const min = minutesAgo(o.fecha);
+            const minRestantes = Math.max(0, APPROVAL_CANCEL_MINUTES - min);
+            return (
+              <div
+                key={o.id}
+                style={{
+                  padding: 20,
+                  borderRadius: 16,
+                  background: T.mustardSoft,
+                  border: `1.5px solid ${T.mustard}`,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+                  <Bell size={18} color={T.mustard} />
+                  <span style={{ ...FontFraunces, fontSize: 17, color: T.text, flex: 1, minWidth: 200 }}>
+                    Un pedido espera tu aprobación
+                  </span>
+                  <Tag tone="mustard" size="xs">HACE {min < 1 ? 'RECIÉN' : `${min} MIN`}</Tag>
+                  <div style={{ ...FontMono, fontSize: 11, color: T.mustard, fontWeight: 600 }}>
+                    ⏱ {minRestantes} min restantes
+                  </div>
+                </div>
+                <div style={{ padding: 14, background: T.card, borderRadius: 12, marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>
+                      Mesa {o.mesa} · Mesero {o.mesero}
+                    </span>
+                    {o.esInvitado && <Tag tone="plum" size="xs"><Heart size={9} /> INVITADO</Tag>}
+                  </div>
+                  <div style={{ fontSize: 13, color: T.textSoft }}>
+                    {o.items.map(i => `${i.cantidad}× ${i.nombre}`).join(' · ')}
+                  </div>
+                  <div style={{ fontSize: 11, color: T.textMute, marginTop: 6, ...FontMono }}>
+                    Se descontará 1 almuerzo de tu plan
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <Btn full variant="primary" icon={Check} onClick={() => aprobarPedido(o.id)}>Aprobar</Btn>
+                  <Btn full variant="ghost" icon={X} onClick={() => rechazarPedido(o.id)}>Rechazar</Btn>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Tab content with smooth transitions */}
-      <div key={tab} className="ebs-tab-content">
-
       {/* Info invitados */}
-      {tab === 'resumen' && sub.permitirInvitados && (
+      {tab === 'resumen' && sub.permitir_invitados && (
         <div style={{ padding: 14, borderRadius: 12, background: T.plumSoft, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <Crown size={18} color={T.plum} style={{ flexShrink: 0, marginTop: 2 }} />
           <div>
@@ -185,8 +212,8 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
 
       {/* RESUMEN: PLAN + PROFILE */}
       {tab === 'resumen' && (
-        <RevealOnScroll>
-          <div style={{ display: 'grid', gap: 14 }} className="grid md:grid-cols-[1.6fr_1fr] grid-cols-1 ebs-stagger">
+        <>
+          <div style={{ display: 'grid', gap: 14 }} className="grid md:grid-cols-[1.6fr_1fr] grid-cols-1">
             {/* Plan card */}
             <Card padding={22}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
@@ -194,7 +221,7 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
                   <KickerLabel>— tu plan activo</KickerLabel>
                   <div style={{ ...FontFraunces, fontSize: 24, color: T.text, marginTop: 4 }}>{plan.nombre}</div>
                   <div style={{ fontSize: 12, color: T.textSoft, marginTop: 4 }}>
-                    {plan.almuerzos} almuerzos · {plan.dias} días · vence {sub.fechaVencimiento}
+                    {plan.almuerzos} almuerzos · {plan.dias} días · vence {sub.fecha_vencimiento}
                   </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
@@ -206,25 +233,27 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
               </div>
 
               {/* Stat cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }} className="grid grid-cols-3 ebs-stagger">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }} className="grid grid-cols-3">
                 <PlanStat
                   label="ALMUERZOS"
-                  value={sub.almuerzosRestantes}
+                  value={sub.almuerzos_restantes}
                   total={plan.almuerzos}
                   bg={T.oliveSoft}
                   fg={T.olive}
-                  pct={(sub.almuerzosRestantes / plan.almuerzos) * 100}
+                  pct={(sub.almuerzos_restantes / plan.almuerzos) * 100}
                 />
                 <div style={{ padding: 14, background: T.mustardSoft, borderRadius: 12 }}>
                   <div style={{ fontSize: 10, color: T.mustard, ...FontMono, letterSpacing: '.1em', fontWeight: 600 }}>
                     DÍAS
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 4 }}>
-                    <AnimatedStatNumber value={diasRestantes} delay={150} style={{ ...FontFraunces, fontSize: 36, color: T.mustard, lineHeight: 1, fontStyle: 'italic' }} />
-                    <span style={{ fontSize: 12, color: T.mustard, opacity: .7 }}>/ {plan.dias}</span>
+                    <span style={{ ...FontFraunces, fontSize: 36, color: T.mustard, lineHeight: 1, fontStyle: 'italic' }}>
+                      {diasRestantes}
+                    </span>
+                    <span style={{ fontSize: 12, color: T.mustard, opacity: .7 }}>restantes</span>
                   </div>
-                  <div style={{ height: 5, background: '#fff', borderRadius: 3, marginTop: 10, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${Math.min(100, (diasRestantes / plan.dias) * 100)}%`, background: T.mustard, transformOrigin: 'left', animation: 'ebs-grow 1.1s cubic-bezier(.2,.8,.2,1) both' }} />
+                  <div style={{ fontSize: 10, color: T.textSoft, marginTop: 10, ...FontMono }}>
+                    VENCE {sub.fecha_vencimiento}
                   </div>
                 </div>
                 <div style={{ padding: 14, background: T.plumSoft, borderRadius: 12 }}>
@@ -233,12 +262,12 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
                   </div>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 4 }}>
                     <span style={{ ...FontFraunces, fontSize: 36, color: T.plum, lineHeight: 1, fontStyle: 'italic' }}>
-                      +<AnimatedStatNumber value={sub.diasExtraCompensados || 0} delay={300} as="span" />
+                      +{sub.dias_extra_compensados || 0}
                     </span>
-                    <span style={{ fontSize: 12, color: T.plum, opacity: .7 }}>/ {MAX_DIAS_COMPENSADOS_AUTO}</span>
+                    <span style={{ fontSize: 12, color: T.plum, opacity: .7 }}>días</span>
                   </div>
-                  <div style={{ height: 5, background: '#fff', borderRadius: 3, marginTop: 10, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${((sub.diasExtraCompensados || 0) / MAX_DIAS_COMPENSADOS_AUTO) * 100}%`, background: T.plum, transformOrigin: 'left', animation: 'ebs-grow 1.1s cubic-bezier(.2,.8,.2,1) both' }} />
+                  <div style={{ fontSize: 10, color: T.textSoft, marginTop: 10, ...FontMono }}>
+                    {(sub.dias_extra_compensados || 0) >= MAX_DIAS_COMPENSADOS_AUTO ? 'MÁXIMO ALCANZADO' : `${MAX_DIAS_COMPENSADOS_AUTO - (sub.dias_extra_compensados || 0)} DISPONIBLES`}
                   </div>
                 </div>
               </div>
@@ -291,17 +320,17 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
               </div>
             </Card>
           </div>
-        </RevealOnScroll>
+        </>
       )}
 
       {/* MENÚ DE HOY */}
       {tab === 'menu' && (
-        <RevealOnScroll>
+        <div>
           <KickerLabel>— oferta de hoy</KickerLabel>
           <h3 style={{ ...FontFraunces, fontSize: 22, color: T.text, margin: '4px 0 16px 0' }}>
             Lo que está disponible
           </h3>
-          <div style={{ display: 'grid', gap: 10 }} className="grid md:grid-cols-2 grid-cols-1 ebs-stagger">
+          <div style={{ display: 'grid', gap: 10 }} className="grid md:grid-cols-2 grid-cols-1">
             {menu.filter(m => m.disponibles > 0).map(m => (
               <Card key={m.id} padding={14}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
@@ -317,25 +346,23 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
               </Card>
             ))}
           </div>
-        </RevealOnScroll>
+        </div>
       )}
 
       {/* CALENDARIO */}
       {tab === 'calendar' && (
-        <RevealOnScroll>
-          <Card padding={20}>
-            <KickerLabel>— tu calendario</KickerLabel>
-            <h3 style={{ ...FontFraunces, fontSize: 22, color: T.text, margin: '4px 0 16px 0' }}>
-              Asistencias y avisos
-            </h3>
-            <AttendanceCalendar events={subEvents} fechaInicio={sub.fechaInicio} fechaVencimiento={sub.fechaVencimiento} />
-          </Card>
-        </RevealOnScroll>
+        <Card padding={20}>
+          <KickerLabel>— tu calendario</KickerLabel>
+          <h3 style={{ ...FontFraunces, fontSize: 22, color: T.text, margin: '4px 0 16px 0' }}>
+            Asistencias y avisos
+          </h3>
+          <AttendanceCalendar events={subEvents} fechaInicio={sub.fecha_inicio} fechaVencimiento={sub.fecha_vencimiento} />
+        </Card>
       )}
 
       {/* HISTORIAL */}
       {tab === 'historial' && (
-        <RevealOnScroll>
+        <div>
           <KickerLabel>— últimas comidas</KickerLabel>
           <h3 style={{ ...FontFraunces, fontSize: 22, color: T.text, margin: '4px 0 16px 0' }}>
             Historial de consumo
@@ -343,67 +370,33 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
           {consumosMes.length === 0 ? (
             <Card><EmptyState title="Aún no has consumido almuerzos" /></Card>
           ) : (
-            <Card padding={20} className="ebs-stagger">
-              {consumosMes.slice(-15).reverse().map((o, i, arr) => {
-                const status =
-                  o.estado === 'entregado' ? 'ok' :
-                  o.estado === 'rechazado' || o.estado === 'cancelado-timeout' ? 'miss' :
-                  'pending';
-                const iconBg = status === 'miss' ? T.redSoft : status === 'pending' ? T.mustardSoft : T.oliveSoft;
-                const iconFg = status === 'miss' ? T.red : status === 'pending' ? T.mustard : T.olive;
-                const iconChar = status === 'miss' ? '✕' : status === 'pending' ? '⋯' : '✓';
-
-                return (
-                  <div
-                    key={o.id}
-                    className="ebs-row"
-                    style={{
-                      display: 'flex',
-                      gap: 12,
-                      padding: '12px 0',
-                      borderBottom: i < arr.length - 1 ? `1px solid ${T.borderSoft}` : 'none',
-                      alignItems: 'flex-start',
-                    }}
-                  >
-                    <div
-                      className="ebs-tick-in"
-                      style={{
-                        width: 38, height: 38, borderRadius: 10, flexShrink: 0,
-                        background: iconBg, color: iconFg,
-                        display: 'grid', placeItems: 'center',
-                        fontSize: 16, fontWeight: 700,
-                      }}
-                    >
-                      {iconChar}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, marginBottom: 2, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {consumosMes.slice(-15).reverse().map(o => (
+                <Card key={o.id} padding={14}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>
                           {o.items.map(i => i.nombre).join(', ')}
                         </span>
-                        <span style={{ fontSize: 11, color: T.textMute, ...FontMono, flexShrink: 0 }}>
-                          {formatDateTime(o.fecha)}
-                        </span>
+                        {o.esInvitado && <Tag tone="plum" size="xs"><Heart size={9} /> INVITADO</Tag>}
                       </div>
-                      <div style={{ fontSize: 12, color: T.textSoft }}>
-                        {status === 'miss' ? (
-                          <span style={{ color: T.red }}>No completado · 1 almuerzo perdido</span>
-                        ) : (
-                          <>Mesa {o.mesa}{o.esInvitado ? ' · invitado' : ''}</>
-                        )}
-                      </div>
+                      <p style={{ fontSize: 11, color: T.textSoft, margin: 0, ...FontMono }}>
+                        Mesa {o.mesa} · {formatDateTime(o.fecha)}
+                      </p>
                     </div>
-                    {status === 'pending' && <Tag tone="mustard" size="xs">POR APROBAR</Tag>}
-                    {o.esInvitado && status !== 'pending' && <Tag tone="plum" size="xs"><Heart size={9} /> INVITADO</Tag>}
+                    <Tag tone={
+                      o.estado === 'entregado' ? 'olive' :
+                      o.estado === 'rechazado' || o.estado === 'cancelado-timeout' ? 'red' :
+                      'mustard'
+                    } size="xs">{o.estado.toUpperCase()}</Tag>
                   </div>
-                );
-              })}
-            </Card>
+                </Card>
+              ))}
+            </div>
           )}
-        </RevealOnScroll>
+        </div>
       )}
-
-      </div>{/* end tab content */}
 
       <ProfileModal open={editProfile} onClose={() => setEditProfile(false)} sub={sub} suscriptores={suscriptores} refresh={refresh} />
 
@@ -443,110 +436,11 @@ function PlanStat({ label, value, total, bg, fg, pct }) {
         {label}
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 4 }}>
-        <AnimatedStatNumber value={value} style={{ ...FontFraunces, fontSize: 36, color: fg, lineHeight: 1, fontStyle: 'italic' }} />
+        <span style={{ ...FontFraunces, fontSize: 36, color: fg, lineHeight: 1, fontStyle: 'italic' }}>{value}</span>
         <span style={{ fontSize: 13, color: fg, opacity: .7 }}>/ {total}</span>
       </div>
       <div style={{ height: 5, background: '#fff', borderRadius: 3, marginTop: 10, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${pct}%`, background: fg, transformOrigin: 'left', animation: 'ebs-grow 1.1s cubic-bezier(.2,.8,.2,1) both' }} />
-      </div>
-    </div>
-  );
-}
-
-// ===== AnimatedStatNumber — counts from 0 to value =====
-function AnimatedStatNumber({ value, delay = 0, style, as = 'span' }) {
-  const animated = useAnimatedNumber(value, { delay, duration: 1100 });
-  const Comp = as;
-  return <Comp style={style}>{animated}</Comp>;
-}
-
-// ===== PendingOrderCard — hero alert with live mm:ss countdown + waves + celebration =====
-function PendingOrderCard({ order, celebrating, onAprobar, onRechazar }) {
-  const totalSeconds = APPROVAL_CANCEL_MINUTES * 60;
-  const { formatted, isUrgent, isCritical } = useCountdown(order.fecha, totalSeconds);
-
-  const bg = isUrgent ? T.redSoft : T.mustardSoft;
-  const border = isUrgent ? T.red : T.mustard;
-  const accent = isUrgent ? T.red : T.mustard;
-
-  return (
-    <div
-      className="ebs-pull-bounce"
-      style={{
-        position: 'relative',
-        padding: 18,
-        borderRadius: 16,
-        background: bg,
-        border: `1.5px solid ${border}`,
-        overflow: 'hidden',
-      }}
-    >
-      {/* Celebration overlay */}
-      {celebrating && (
-        <div
-          className="ebs-celebrate"
-          style={{
-            width: 120, height: 120, borderRadius: '50%',
-            background: T.olive, color: '#fff',
-            display: 'grid', placeItems: 'center',
-          }}
-        >
-          <Check size={70} strokeWidth={3} />
-        </div>
-      )}
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-        {/* Bell with concentric waves */}
-        <div style={{ position: 'relative', width: 36, height: 36, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-          <div className="ebs-wave" style={{ color: accent }} />
-          <div className="ebs-wave ebs-wave-2" style={{ color: accent }} />
-          <div className="ebs-wave ebs-wave-3" style={{ color: accent }} />
-          <div
-            style={{
-              width: 36, height: 36, borderRadius: '50%',
-              background: accent, color: '#fff',
-              display: 'grid', placeItems: 'center',
-              position: 'relative', zIndex: 2,
-            }}
-          >
-            <Bell size={16} />
-          </div>
-        </div>
-        <span style={{ ...FontFraunces, fontSize: 16, color: T.text, flex: 1, minWidth: 180 }}>
-          Un pedido espera tu aprobación
-        </span>
-        <div
-          className={isCritical ? 'ebs-vibrate' : ''}
-          style={{
-            ...FontMono, fontSize: 13, color: accent, fontWeight: 700,
-            padding: '4px 10px', borderRadius: 8,
-            background: isUrgent ? '#fff' : 'rgba(255,255,255,.5)',
-            boxShadow: isCritical ? `0 0 0 2px ${accent}` : 'none',
-            transition: 'box-shadow .3s ease',
-          }}
-        >
-          ⏱ {formatted}
-        </div>
-      </div>
-
-      <div style={{ padding: 12, background: T.card, borderRadius: 12, marginBottom: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>
-            Mesa {order.mesa} · Mesero {order.mesero}
-          </span>
-          {order.esInvitado && <Tag tone="plum" size="xs"><Heart size={9} /> INVITADO</Tag>}
-        </div>
-        <div style={{ fontSize: 13, color: T.textSoft }}>
-          {order.items.map(i => `${i.cantidad}× ${i.nombre}`).join(' · ')}
-        </div>
-        <div style={{ fontSize: 11, color: T.textMute, marginTop: 6, ...FontMono }}>
-          Se descontará 1 almuerzo de tu plan
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: 10 }}>
-        <Btn full variant="primary" icon={Check} onClick={onAprobar}>Aprobar</Btn>
-        <Btn full variant="ghost" icon={X} onClick={onRechazar}>Rechazar</Btn>
       </div>
     </div>
   );
@@ -559,7 +453,7 @@ function ExtensionRequestModal({ open, onClose, sub, plan, subEvents, refresh })
 
   const avisosCount = subEvents.filter(e => e.tipo === 'aviso-inasistencia').length;
   const inasistCount = subEvents.filter(e => e.tipo === 'inasistencia-sin-aviso').length;
-  const diasCompensados = sub.diasExtraCompensados || 0;
+  const diasCompensados = sub.dias_extra_compensados || 0;
 
   const enviarSolicitud = async () => {
     if (!motivo.trim() || dias < 1) return;
@@ -575,8 +469,8 @@ function ExtensionRequestModal({ open, onClose, sub, plan, subEvents, refresh })
         nombre: sub.nombre,
         codigo: sub.codigo,
         plan: plan?.nombre || '—',
-        almuerzosRestantes: sub.almuerzosRestantes,
-        fechaVencimiento: sub.fechaVencimiento,
+        almuerzosRestantes: sub.almuerzos_restantes,
+        fechaVencimiento: sub.fecha_vencimiento,
         diasYaCompensados: diasCompensados,
         avisosInasistencia: avisosCount,
         inasistenciasSinAviso: inasistCount,
@@ -598,8 +492,8 @@ function ExtensionRequestModal({ open, onClose, sub, plan, subEvents, refresh })
           <KickerLabel>— resumen de tu cuenta</KickerLabel>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, fontSize: 11, marginTop: 6 }}>
             <div><span style={{ color: T.textMute }}>Plan:</span> <strong style={{ color: T.text }}>{plan?.nombre || '—'}</strong></div>
-            <div><span style={{ color: T.textMute }}>Vence:</span> <strong style={{ color: T.text }}>{sub.fechaVencimiento || '—'}</strong></div>
-            <div><span style={{ color: T.textMute }}>Almuerzos rest.:</span> <strong style={{ color: T.text }}>{sub.almuerzosRestantes}</strong></div>
+            <div><span style={{ color: T.textMute }}>Vence:</span> <strong style={{ color: T.text }}>{sub.fecha_vencimiento || '—'}</strong></div>
+            <div><span style={{ color: T.textMute }}>Almuerzos rest.:</span> <strong style={{ color: T.text }}>{sub.almuerzos_restantes}</strong></div>
             <div><span style={{ color: T.textMute }}>Compensados:</span> <strong style={{ color: T.text }}>{diasCompensados} / {MAX_DIAS_COMPENSADOS_AUTO}</strong></div>
           </div>
         </div>
