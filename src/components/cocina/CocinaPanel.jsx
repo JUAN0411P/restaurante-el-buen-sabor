@@ -23,11 +23,20 @@ export function CocinaPanel({ orders, mesas, refresh }) {
     ? Math.round(entregadosHoy.reduce((s, o) => s + (new Date(o.fechaEntrega) - new Date(o.fecha)) / 60000, 0) / entregadosHoy.length)
     : 0;
 
+  // const cambiarEstado = async (id, nuevoEstado) => {
+  //   const currentOrders = await db.get('rest:orders', []);
+  //   await db.set('rest:orders', currentOrders.map(o => o.id === id
+  //     ? { ...o, estado: nuevoEstado, [`fecha_${nuevoEstado}`]: new Date().toISOString() }
+  //     : o));
+  //   refresh();
+  // };
+// Reemplaza la función cambiarEstado completa:
   const cambiarEstado = async (id, nuevoEstado) => {
-    const currentOrders = await db.get('rest:orders', []);
-    await db.set('rest:orders', currentOrders.map(o => o.id === id
-      ? { ...o, estado: nuevoEstado, [`fecha_${nuevoEstado}`]: new Date().toISOString() }
-      : o));
+    const cambios = { estado: nuevoEstado };
+    if (nuevoEstado === 'preparando') cambios.fecha_preparando = new Date().toISOString();
+    if (nuevoEstado === 'listo')      cambios.fecha_listo      = new Date().toISOString();
+    if (nuevoEstado === 'entregado')  cambios.fecha_entrega    = new Date().toISOString();
+    await db.update('rest:orders', id, cambios);
     refresh();
   };
 

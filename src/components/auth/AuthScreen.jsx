@@ -123,22 +123,17 @@ function SubRegister({ onBack, onSuccess }) {
     setErrors(e);
     if (Object.keys(e).length > 0) return;
 
-    const subs = await db.get('rest:subs', []);
-    if (subs.find(s => s.email?.toLowerCase() === form.email.toLowerCase())) {
-      setSubmitError('Ya existe una cuenta con ese email'); return;
-    }
-    if (subs.find(s => s.cedula === form.cedula)) {
-      setSubmitError('Ya existe una cuenta con esa cédula'); return;
-    }
+    
+  };
+  // En SubRegister, función handleSubmit — reemplaza desde "const subs = await..." hasta el onSuccess:
 
-    const newSub = {
-      id: `s${Date.now()}`,
+    const { data: newSub, error } = await db.insert('rest:subs', {
       codigo: `SUB-${1000 + subs.length + 1}`,
       nombre: form.nombre.trim(),
       email: form.email.toLowerCase(),
       cedula: form.cedula,
       telefono: form.telefono,
-      password_hash: hashPw(form.password),
+      password_hash: hashPw(form.password),   // ← corregido
       plan_id: null,
       almuerzos_restantes: 0,
       fecha_inicio: null,
@@ -146,23 +141,18 @@ function SubRegister({ onBack, onSuccess }) {
       dias_extra_compensados: 0,
       activo: true,
       permitir_invitados: false,
-      created_at: new Date().toISOString(),
-    };
-    await db.set('rest:subs', [...subs, newSub]);
+    });
+    if (error) { setSubmitError('Error al registrar. Intenta de nuevo.'); return; }
 
-    const notifs = await db.get('rest:notifications', []);
-    await db.set('rest:notifications', [...notifs, {
-      id: `n${Date.now()}`,
+    await db.insert('rest:notifications', {
       tipo: 'nuevo-suscriptor',
       leida: false,
       titulo: 'Nuevo suscriptor registrado',
       mensaje: `${newSub.nombre} se registró y espera activar su plan`,
-      suscriptorId: newSub.id,
-      created_at: new Date().toISOString(),
-    }]);
+      suscriptor_id: newSub.id,   // ← columna correcta (era suscriptorId)
+    });
 
     onSuccess({ type: 'suscriptor', data: newSub });
-  };
 
   return (
     <Card padding={24}>

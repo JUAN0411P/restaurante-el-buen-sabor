@@ -12,8 +12,9 @@ const TABLE_MAP = {
   'rest:subs':          'suscriptores',
   'rest:mesas':         'mesas',
   'rest:orders':        'orders',
-  'rest:events':        'events',
+  'rest:events':        'even ts',
   'rest:notifications': 'notifications',
+  'rest:comensales': 'comensales',
 };
 
 export const db = {

@@ -10,14 +10,26 @@ import { Card, Tag, Btn, KickerLabel } from '../ui/primitives';
  * No "back" button: the parent X handles closing.
  */
 export function MesaDetalle({ mesaActiva, mesaData, orders, mesas, onAgregarComensal, onTomarPedido }) {
+  // const removerComensal = async (comensalId) => {
+  //   if (!confirm('¿El comensal se va de la mesa?')) return;
+  //   const ordersComensal = orders.filter(o => o.comensal_id === comensalId);
+  //   const sinPagar = ordersComensal.filter(o => !o.pagado && o.tipo === 'menu');
+  //   if (sinPagar.length > 0) { alert('Este comensal tiene cuentas pendientes de pago'); return; }
+  //   await db.set('rest:mesas', mesas.map(m => m.id === mesaActiva.id ? {
+  //     ...m, comensales: m.comensales.filter(c => c.id !== comensalId)
+  //   } : m));
+  // };
+// Reemplaza la función removerComensal completa:
   const removerComensal = async (comensalId) => {
     if (!confirm('¿El comensal se va de la mesa?')) return;
     const ordersComensal = orders.filter(o => o.comensal_id === comensalId);
     const sinPagar = ordersComensal.filter(o => !o.pagado && o.tipo === 'menu');
-    if (sinPagar.length > 0) { alert('Este comensal tiene cuentas pendientes de pago'); return; }
-    await db.set('rest:mesas', mesas.map(m => m.id === mesaActiva.id ? {
-      ...m, comensales: m.comensales.filter(c => c.id !== comensalId)
-    } : m));
+    if (sinPagar.length > 0) {
+      alert('Este comensal tiene cuentas pendientes de pago');
+      return;
+    }
+    await db.update('rest:comensales', comensalId, { left_at: new Date().toISOString() });
+    refresh();
   };
 
   return (
