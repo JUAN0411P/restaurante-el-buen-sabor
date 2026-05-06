@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, ChefHat, UserPlus, LogOut, Plus, Bell, Check, Clock, AlertCircle, Heart, Users, Coffee, UtensilsCrossed, Lock } from 'lucide-react';
+import { X, ChefHat, UserPlus, LogOut, Plus, Bell, Check, Clock, AlertTriangle, Heart, Users, Coffee, UtensilsCrossed, Lock } from 'lucide-react';
 import { T, FontFraunces, FontMono } from '../../lib/tokens';
 import { db, supabase, todayISO, minutesAgo, APPROVAL_TIMEOUT_MINUTES, APPROVAL_CANCEL_MINUTES } from '../../lib/utils';
 import { Modal, Btn, Card, Tag, EmptyState, KickerLabel } from '../ui/primitives';
@@ -378,7 +378,7 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
   };
 
   const ordersListos = orders.filter(o => o.estado === 'listo');
-  const ordersPendientesAprobacion = orders.filter(o => o.estado === 'esperando-aprobacion' && o.suscriptor_id === sub.id);
+  const ordersPendientesAprobacion = orders.filter(o => o.estado === 'esperando-aprobacion');
   const alertasMesas = {};
   ordersPendientesAprobacion.forEach(o => {
     if (minutesAgo(o.fecha) >= APPROVAL_TIMEOUT_MINUTES) alertasMesas[o.mesa_numero] = true;

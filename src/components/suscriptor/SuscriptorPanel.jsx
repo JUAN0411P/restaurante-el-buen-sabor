@@ -4,7 +4,7 @@ import {
   Crown, Heart, Clock, Bell, User, Mail, Lock, Phone, QrCode
 } from 'lucide-react';
 import { T, FontFraunces, FontMono } from '../../lib/tokens';
-import { db, formatMoney, formatDateTime, hashPw, validators, minutesAgo, AVISO_INASISTENCIA_HORA, MAX_DIAS_COMPENSADOS_AUTO, APPROVAL_CANCEL_MINUTES } from '../../lib/utils';
+import { db, supabase, formatMoney, formatDateTime, hashPw, validators, minutesAgo, AVISO_INASISTENCIA_HORA, MAX_DIAS_COMPENSADOS_AUTO, APPROVAL_CANCEL_MINUTES } from '../../lib/utils';
 import { Card, Tag, Btn, Modal, Input, EmptyState, KickerLabel } from '../ui/primitives';
 import { AttendanceCalendar } from '../ui/AttendanceCalendar';
 import { crearNotificacion } from '../ui/NotificationsPanel';
@@ -19,7 +19,7 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
   const plan = planes.find(p => p.id === sub.plan_id);
 
   const pendientesAprobacion = orders.filter(o =>
-    o.estado === 'esperando-aprobacion' && o.suscriptor?.id === sub.id
+    o.estado === 'esperando-aprobacion' && o.suscriptor_id === sub.id
   );
 
   const consumosMes = orders.filter(o => o.suscriptor?.id === sub.id && o.tipo === 'suscripcion');
@@ -29,35 +29,71 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
   const subEvents = events.filter(e => e.suscriptorId === sub.id);
 
   const aprobarPedido = async (orderId) => {
-    const allOrders = await db.get('rest:orders', []);
-    const order = allOrders.find(o => o.id === orderId);
-    if (!order) return;
+    if (!confirm('¿Aprobar este pedido? Se enviará a cocina y se descontará 1 almuerzo de tu plan.')) return;
+    try {
+      // 1. Obtener la orden directamente de Supabase
+      const { data: order, error: errOrder } = await db.update('rest:orders', orderId, {
+        estado: 'pendiente',
+        aprobado_en: new Date().toISOString(),
+      });
+      if (errOrder) { alert('Error al aprobar el pedido.'); return; }
 
-    await db.set('rest:orders', allOrders.map(o => o.id === orderId
-      ? { ...o, estado: 'pendiente', aprobadoEn: new Date().toISOString() }
-      : o));
+      // 2. Descontar 1 almuerzo al suscriptor
+      await db.update('rest:subs', sub.id, {
+        almuerzos_restantes: Math.max(0, (sub.almuerzos_restantes || 1) - 1),
+      });
 
-    const allSubs = await db.get('rest:subs', []);
-    await db.set('rest:subs', allSubs.map(s => s.id === sub.id
-      ? { ...s, almuerzosRestantes: Math.max(0, s.almuerzosRestantes - 1) }
-      : s));
+      // 3. Descontar disponibles del menú
+      const allMenu = await db.get('rest:menu', []);
+      await Promise.all(
+        (order?.items || []).map(item => {
+          const m = allMenu.find(x => x.id === item.id);
+          if (!m) return Promise.resolve();
+          return db.update('rest:menu', m.id, {
+            disponibles: Math.max(0, m.disponibles - item.cantidad),
+            vendidos: (m.vendidos || 0) + item.cantidad,
+          });
+        })
+      );
 
-    const allMenu = await db.get('rest:menu', []);
-    await db.set('rest:menu', allMenu.map(m => {
-      const c = order.items.find(x => x.id === m.id);
-      return c ? { ...m, disponibles: Math.max(0, m.disponibles - c.cantidad), vendidos: (m.vendidos || 0) + c.cantidad } : m;
-    }));
+      // 4. Eliminar la notificación pendiente para que no vuelva a aparecer
+      const allNotifs = await db.get('rest:notifications', []);
+      const notifRelacionada = allNotifs.find(n =>
+        n.tipo === 'pedido-pendiente' && n.order_id === orderId && n.suscriptor_id === sub.id
+      );
+      if (notifRelacionada) {
+        await supabase.from('notifications').delete().eq('id', notifRelacionada.id);
+      }
 
-    refresh();
+      refresh();
+    } catch (e) {
+      console.error('Error aprobando pedido:', e);
+      alert('Error inesperado al aprobar.');
+    }
   };
 
   const rechazarPedido = async (orderId) => {
     if (!confirm('¿Rechazar este pedido? No se cobrará ni se enviará a cocina.')) return;
-    const allOrders = await db.get('rest:orders', []);
-    await db.set('rest:orders', allOrders.map(o => o.id === orderId
-      ? { ...o, estado: 'rechazado', rechazadoEn: new Date().toISOString() }
-      : o));
-    refresh();
+    try {
+      await db.update('rest:orders', orderId, {
+        estado: 'rechazado',
+        rechazado_en: new Date().toISOString(),
+      });
+
+      // Eliminar la notificación asociada
+      const allNotifs = await db.get('rest:notifications', []);
+      const notifRelacionada = allNotifs.find(n =>
+        n.tipo === 'pedido-pendiente' && n.order_id === orderId && n.suscriptor_id === sub.id
+      );
+      if (notifRelacionada) {
+        await supabase.from('notifications').delete().eq('id', notifRelacionada.id);
+      }
+
+      refresh();
+    } catch (e) {
+      console.error('Error rechazando pedido:', e);
+      alert('Error inesperado al rechazar.');
+    }
   };
 
   const enviarAvisoInasistencia = async () => {
@@ -174,7 +210,7 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
                 <div style={{ padding: 14, background: T.card, borderRadius: 12, marginBottom: 12 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>
-                      Mesa {o.mesa} · Mesero {o.mesero}
+                      Mesa {o.mesa_numero} · Mesero {o.mesero_id}
                     </span>
                     {o.esInvitado && <Tag tone="plum" size="xs"><Heart size={9} /> INVITADO</Tag>}
                   </div>

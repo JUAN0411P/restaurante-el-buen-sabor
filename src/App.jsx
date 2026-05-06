@@ -105,7 +105,7 @@ export default function App() {
         .map(o => o.mesa)
     ).size;
     const aprobacionPendiente = role?.type === 'suscriptor'
-      ? store.orders.filter(o => o.estado === 'esperando-aprobacion' && o.suscriptor?.id === role.data.id).length
+      ? store.orders.filter(o => o.estado === 'esperando-aprobacion' && o.suscriptor_id === role.data.id).length
       : 0;
     return { porCobrar, subsSinPlan, pendientesCocina, alertasMesas, aprobacionPendiente };
   }, [store.orders, store.suscriptores, role]);

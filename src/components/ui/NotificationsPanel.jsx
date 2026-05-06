@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Bell, UserPlus, Clock, CheckCircle2, X, Utensils, Check, Calendar } from 'lucide-react';
 import { T } from '../../lib/tokens';
-import { db, formatDateTime } from '../../lib/utils';
+import { db, supabase, formatDateTime } from '../../lib/utils';
 import { Modal, EmptyState, Btn, Tag } from './primitives';
 
 
@@ -159,15 +159,14 @@ function PedidoActions({ notif, refresh, onClose }) {
     if (!confirm('¿Aprobar este pedido? Se enviará a cocina y se descontará de tu plan.')) return;
     setProcesando(true);
     try {
-      const allOrders = await db.get('rest:orders', []);
-      const order = allOrders.find(o => o.id === notif.order_id);
-      if (!order) { alert('No se encontró el pedido.'); return; }
-
-      await db.update('rest:orders', order.id, {
+      // 1. Cambiar estado de la orden a pendiente (va a cocina)
+      const { error: errOrder } = await db.update('rest:orders', notif.order_id, {
         estado: 'pendiente',
-        aprobadoEn: new Date().toISOString(),
+        aprobado_en: new Date().toISOString(),
       });
+      if (errOrder) { alert('No se encontró el pedido.'); return; }
 
+      // 2. Descontar 1 almuerzo al suscriptor
       const allSubs = await db.get('rest:subs', []);
       const sub = allSubs.find(s => s.id === notif.suscriptor_id);
       if (sub) {
@@ -176,23 +175,26 @@ function PedidoActions({ notif, refresh, onClose }) {
         });
       }
 
+      // 3. Descontar disponibles del menú
       const allMenu = await db.get('rest:menu', []);
-      await Promise.all(
-        (order.items || []).map(item => {
-          const m = allMenu.find(x => x.id === item.id);
-          if (!m) return Promise.resolve();
-          return db.update('rest:menu', m.id, {
-            disponibles: Math.max(0, m.disponibles - item.cantidad),
-            vendidos: (m.vendidos || 0) + item.cantidad,
-          });
-        })
-      );
+      // Obtener items de la orden directamente
+      const allOrders = await db.get('rest:orders', []);
+      const order = allOrders.find(o => o.id === notif.order_id);
+      if (order?.items) {
+        await Promise.all(
+          order.items.map(item => {
+            const m = allMenu.find(x => x.id === item.id);
+            if (!m) return Promise.resolve();
+            return db.update('rest:menu', m.id, {
+              disponibles: Math.max(0, m.disponibles - item.cantidad),
+              vendidos: (m.vendidos || 0) + item.cantidad,
+            });
+          })
+        );
+      }
 
-      await db.update('rest:notifications', notif.id, {
-        procesada: true,
-        procesadaResultado: 'aprobada',
-        leida: true,
-      });
+      // 4. Eliminar esta notificación para que no vuelva a aparecer ni se pueda aprobar dos veces
+      await supabase.from('notifications').delete().eq('id', notif.id);
 
       refresh();
       onClose();
@@ -208,20 +210,13 @@ function PedidoActions({ notif, refresh, onClose }) {
     if (!confirm('¿Rechazar este pedido? No se cobrará ni se enviará a cocina.')) return;
     setProcesando(true);
     try {
-      const allOrders = await db.get('rest:orders', []);
-      const order = allOrders.find(o => o.id === notif.order_id);
-      if (order) {
-        await db.update('rest:orders', order.id, {
-          estado: 'rechazado',
-          rechazadoEn: new Date().toISOString(),
-        });
-      }
-
-      await db.update('rest:notifications', notif.id, {
-        procesada: true,
-        procesadaResultado: 'rechazada',
-        leida: true,
+      await db.update('rest:orders', notif.order_id, {
+        estado: 'rechazado',
+        rechazado_en: new Date().toISOString(),
       });
+
+      // Eliminar la notificación al rechazar también
+      await supabase.from('notifications').delete().eq('id', notif.id);
 
       refresh();
     } catch (e) {
