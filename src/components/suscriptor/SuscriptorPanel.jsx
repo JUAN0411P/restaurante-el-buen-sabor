@@ -31,22 +31,27 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
   const aprobarPedido = async (orderId) => {
     if (!confirm('¿Aprobar este pedido? Se enviará a cocina y se descontará 1 almuerzo de tu plan.')) return;
     try {
-      // 1. Obtener la orden directamente de Supabase
-      const { data: order, error: errOrder } = await db.update('rest:orders', orderId, {
+      // 1. Obtener la orden primero (necesitamos los items para descontar menú)
+      const allOrders = await db.get('rest:orders', []);
+      const order = allOrders.find(o => o.id === orderId);
+      if (!order) { alert('No se encontró el pedido.'); return; }
+
+      // 2. Cambiar estado a pendiente (va a cocina)
+      const { error: errOrder } = await db.update('rest:orders', orderId, {
         estado: 'pendiente',
         aprobado_en: new Date().toISOString(),
       });
       if (errOrder) { alert('Error al aprobar el pedido.'); return; }
 
-      // 2. Descontar 1 almuerzo al suscriptor
+      // 3. Descontar 1 almuerzo al suscriptor
       await db.update('rest:subs', sub.id, {
         almuerzos_restantes: Math.max(0, (sub.almuerzos_restantes || 1) - 1),
       });
 
-      // 3. Descontar disponibles del menú
+      // 4. Descontar disponibles del menú
       const allMenu = await db.get('rest:menu', []);
       await Promise.all(
-        (order?.items || []).map(item => {
+        (order.items || []).map(item => {
           const m = allMenu.find(x => x.id === item.id);
           if (!m) return Promise.resolve();
           return db.update('rest:menu', m.id, {
@@ -56,7 +61,7 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
         })
       );
 
-      // 4. Eliminar la notificación pendiente para que no vuelva a aparecer
+      // 5. Eliminar la notificación para que no vuelva a aparecer ni se apruebe dos veces
       const allNotifs = await db.get('rest:notifications', []);
       const notifRelacionada = allNotifs.find(n =>
         n.tipo === 'pedido-pendiente' && n.order_id === orderId && n.suscriptor_id === sub.id
@@ -181,53 +186,17 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
         <Btn variant="ghost" size="sm" icon={Edit3} onClick={() => setEditProfile(true)}>Editar perfil</Btn>
       </div>
 
-      {/* HERO ALERT — pedidos pendientes */}
+      {/* HERO ALERT — pedidos pendientes (estilo mockup: flotante, shimmer, countdown) */}
       {pendientesAprobacion.length > 0 && (
         <div className="space-y-3">
-          {pendientesAprobacion.map(o => {
-            const min = minutesAgo(o.fecha);
-            const minRestantes = Math.max(0, APPROVAL_CANCEL_MINUTES - min);
-            return (
-              <div
-                key={o.id}
-                style={{
-                  padding: 20,
-                  borderRadius: 16,
-                  background: T.mustardSoft,
-                  border: `1.5px solid ${T.mustard}`,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-                  <Bell size={18} color={T.mustard} />
-                  <span style={{ ...FontFraunces, fontSize: 17, color: T.text, flex: 1, minWidth: 200 }}>
-                    Un pedido espera tu aprobación
-                  </span>
-                  <Tag tone="mustard" size="xs">HACE {min < 1 ? 'RECIÉN' : `${min} MIN`}</Tag>
-                  <div style={{ ...FontMono, fontSize: 11, color: T.mustard, fontWeight: 600 }}>
-                    ⏱ {minRestantes} min restantes
-                  </div>
-                </div>
-                <div style={{ padding: 14, background: T.card, borderRadius: 12, marginBottom: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>
-                      Mesa {o.mesa_numero} · Mesero {o.mesero_id}
-                    </span>
-                    {o.esInvitado && <Tag tone="plum" size="xs"><Heart size={9} /> INVITADO</Tag>}
-                  </div>
-                  <div style={{ fontSize: 13, color: T.textSoft }}>
-                    {o.items.map(i => `${i.cantidad}× ${i.nombre}`).join(' · ')}
-                  </div>
-                  <div style={{ fontSize: 11, color: T.textMute, marginTop: 6, ...FontMono }}>
-                    Se descontará 1 almuerzo de tu plan
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <Btn full variant="primary" icon={Check} onClick={() => aprobarPedido(o.id)}>Aprobar</Btn>
-                  <Btn full variant="ghost" icon={X} onClick={() => rechazarPedido(o.id)}>Rechazar</Btn>
-                </div>
-              </div>
-            );
-          })}
+          {pendientesAprobacion.map(o => (
+            <PedidoHeroCard
+              key={o.id}
+              orden={o}
+              onAprobar={aprobarPedido}
+              onRechazar={rechazarPedido}
+            />
+          ))}
         </div>
       )}
 
@@ -461,6 +430,140 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
         subEvents={subEvents}
         refresh={refresh}
       />
+    </div>
+  );
+}
+
+// ─── Tarjeta hero de pedido pendiente — diseño fiel al mockup ───────────────
+function PedidoHeroCard({ orden, onAprobar, onRechazar }) {
+  const [procesando, setProcesando] = useState(false);
+
+  // Countdown en segundos hasta el timeout
+  const totalSegundos = APPROVAL_CANCEL_MINUTES * 60;
+  const transcurridos = Math.floor((Date.now() - new Date(orden.fecha).getTime()) / 1000);
+  const [segsRestantes, setSegsRestantes] = useState(Math.max(0, totalSegundos - transcurridos));
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setSegsRestantes(s => Math.max(0, s - 1));
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const mm = String(Math.floor(segsRestantes / 60)).padStart(2, '0');
+  const ss = String(segsRestantes % 60).padStart(2, '0');
+  const urgente = segsRestantes < 120; // últimos 2 min
+
+  const handleAprobar = async () => {
+    setProcesando(true);
+    await onAprobar(orden.id);
+    setProcesando(false);
+  };
+
+  const handleRechazar = async () => {
+    setProcesando(true);
+    await onRechazar(orden.id);
+    setProcesando(false);
+  };
+
+  return (
+    <div style={{
+      padding: 20,
+      borderRadius: 18,
+      background: T.mustardSoft,
+      border: `1.5px solid ${urgente ? T.red : T.mustard}`,
+      position: 'relative',
+      overflow: 'hidden',
+      transition: 'border-color .4s ease',
+    }}>
+      {/* Shimmer animado */}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,.45) 50%, transparent 100%)',
+        backgroundSize: '200% 100%',
+        animation: 'ebs-shimmer 2.4s linear infinite',
+      }} />
+
+      {/* Encabezado */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, position: 'relative' }}>
+        <span style={{
+          width: 9, height: 9, borderRadius: '50%',
+          background: urgente ? T.red : T.mustard,
+          flexShrink: 0,
+          animation: 'ebs-pulse 1.6s ease-in-out infinite',
+        }} />
+        <span style={{ ...FontMono, fontSize: 11, color: urgente ? T.red : T.mustard, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase' }}>
+          PEDIDO POR APROBAR
+        </span>
+        {orden.es_invitado && <Tag tone="plum" size="xs"><Heart size={9} /> INVITADO</Tag>}
+      </div>
+
+      {/* Descripción del pedido */}
+      <div style={{ position: 'relative', marginBottom: 14 }}>
+        <div style={{ ...FontFraunces, fontSize: 20, color: T.text, marginBottom: 3 }}>
+          Mesa {orden.mesa_numero} · {(orden.items || []).map(i => i.nombre).join(', ')}
+        </div>
+        <div style={{ fontSize: 12, color: T.textSoft }}>
+          {(orden.items || []).map(i => `${i.cantidad}× ${i.nombre}`).join(' · ')}
+          {orden.mesero_id ? ` · Mesero ${orden.mesero_id}` : ''}
+        </div>
+      </div>
+
+      {/* Countdown */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '8px 14px', background: T.card, borderRadius: 10, marginBottom: 14,
+        position: 'relative',
+      }}>
+        <span style={{ fontSize: 11, color: T.textSoft, ...FontMono }}>expira en</span>
+        <span style={{
+          ...FontFraunces, fontSize: 26, fontStyle: 'italic',
+          color: urgente ? T.red : T.mustard, lineHeight: 1,
+          animation: urgente ? 'ebs-countdown 1s ease-in-out infinite' : 'none',
+          display: 'inline-block',
+        }}>
+          {mm}:{ss}
+        </span>
+      </div>
+
+      {/* Nota de descuento */}
+      <div style={{ fontSize: 11, color: T.textMute, ...FontMono, marginBottom: 14, position: 'relative' }}>
+        Se descontará 1 almuerzo de tu plan
+      </div>
+
+      {/* Botones */}
+      <div style={{ display: 'flex', gap: 10, position: 'relative' }}>
+        <button
+          disabled={procesando}
+          onClick={handleAprobar}
+          style={{
+            flex: 1, padding: '13px 0', borderRadius: 12,
+            background: procesando ? T.oliveSoft : T.olive,
+            color: '#fff', border: 0, fontSize: 14, fontWeight: 600,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            cursor: procesando ? 'not-allowed' : 'pointer',
+            fontFamily: "'Manrope', sans-serif",
+            transition: 'background .2s ease',
+          }}
+        >
+          <Check size={16} />{procesando ? 'Procesando…' : 'Aprobar'}
+        </button>
+        <button
+          disabled={procesando}
+          onClick={handleRechazar}
+          style={{
+            flex: 1, padding: '13px 0', borderRadius: 12,
+            background: 'transparent', color: T.red,
+            border: `1.5px solid ${T.border}`, fontSize: 14, fontWeight: 600,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            cursor: procesando ? 'not-allowed' : 'pointer',
+            fontFamily: "'Manrope', sans-serif",
+            transition: 'border-color .2s ease',
+          }}
+        >
+          <X size={16} />Rechazar
+        </button>
+      </div>
     </div>
   );
 }
