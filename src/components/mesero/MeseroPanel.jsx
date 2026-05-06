@@ -169,7 +169,7 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
           console.log('📨 Enviando notificación a suscriptor:', configPedido.suscriptor.id);
 
           await crearNotificacion({
-            tipo: 'pedido-aprobacion',
+            tipo: 'pedido-pendiente',
             titulo: tipoFinal === 'invitado'
               ? '🔔 Pedido de invitado pendiente'
               : '🔔 Pedido pendiente',
@@ -378,7 +378,7 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
   };
 
   const ordersListos = orders.filter(o => o.estado === 'listo');
-  const ordersPendientesAprobacion = orders.filter(o => o.estado === 'esperando-aprobacion');
+  const ordersPendientesAprobacion = orders.filter(o => o.estado === 'esperando-aprobacion' && o.suscriptor_id === sub.id);
   const alertasMesas = {};
   ordersPendientesAprobacion.forEach(o => {
     if (minutesAgo(o.fecha) >= APPROVAL_TIMEOUT_MINUTES) alertasMesas[o.mesa_numero] = true;
