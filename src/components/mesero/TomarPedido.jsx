@@ -4,7 +4,7 @@ import { T, FontFraunces, FontMono } from '../../lib/tokens';
 import { formatMoney } from '../../lib/utils';
 import { Tag, Btn, KickerLabel } from '../ui/primitives';
 
-export function TomarPedido({ mesaActiva, config, menu, onCancel, onEnviar }) {
+export function TomarPedido({ mesaActiva, config, menu, enviando, onCancel, onEnviar }) {
   const [carrito, setCarrito] = useState([]);
 
   const tipoMostrar = config.tipo;
@@ -149,9 +149,9 @@ export function TomarPedido({ mesaActiva, config, menu, onCancel, onEnviar }) {
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                  <Btn variant="ghost" onClick={onCancel}>Cancelar</Btn>
-                  <Btn full icon={requiereAprobacion ? Clock : ChefHat} onClick={() => onEnviar(carrito)}>
-                    {requiereAprobacion ? 'Enviar para aprobación →' : 'Enviar a cocina →'}
+                  <Btn variant="ghost" onClick={onCancel} disabled={enviando}>Cancelar</Btn>
+                  <Btn full icon={enviando ? Clock : (requiereAprobacion ? Clock : ChefHat)} onClick={() => onEnviar(carrito)} disabled={enviando}>
+                    {enviando ? 'Enviando…' : requiereAprobacion ? 'Enviar para aprobación →' : 'Enviar a cocina →'}
                   </Btn>
                 </div>
               </>

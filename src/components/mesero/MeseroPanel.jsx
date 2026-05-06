@@ -15,6 +15,8 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
   const [comensalActivo, setComensalActivo] = useState(null);
   const [configPedido, setConfigPedido] = useState(null);
   const [alertaTimeout, setAlertaTimeout] = useState(null);
+  const [errorPedido, setErrorPedido] = useState(null);
+  const [enviando, setEnviando] = useState(false);
 
   const mesaData = mesaSeleccionada ? mesas.find(m => m.id === mesaSeleccionada.id) : null;
 
@@ -88,25 +90,18 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
     setPanelDerecho('pedido');
   };
 
-  const onComensalConfig = async (config) => {
-    // // Si es un comensal nuevo (viene del flow de agregar), insertarlo en la tabla comensales
-    // if (!comensalActivo) {
-    //   const tipoFinal = config.tipo === 'invitado' ? 'invitado' : config.tipo;
-    //   const { data: nuevoComensal, error } = await db.insert('rest:comensales', {
-    //     mesa_id: mesaSeleccionada.id,
-    //     nombre: config.nombre,
-    //     tipo: tipoFinal,
-    //     suscriptor_id: config.suscriptor?.id || null,
-    //   });
-    //   if (error) { console.error('Error creando comensal:', error); return; }
-    //   setComensalActivo(nuevoComensal);
-    // }
+  const onComensalConfig = (config) => {
+    // Recibimos la config del flow (tipo, nombre, suscriptor).
+    // El comensal en DB se crea más tarde en enviarPedido(),
+    // cuando el mesero ya armó el carrito y confirmó.
     setConfigPedido(config);
-    setComensalActivo(null);
+    setComensalActivo(null); // aún no existe en DB
     setPanelDerecho('pedido');
   };
   const enviarPedido = async (carrito) => {
     if (carrito.length === 0) return;
+    setErrorPedido(null);
+    setEnviando(true);
 
     // 1. Reutilizar el comensal existente o crear uno nuevo (primer pedido)
     const tipoFinal = configPedido.tipo === 'invitado' ? 'invitado' : configPedido.tipo;
@@ -120,6 +115,8 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
       });
       if (errComensal || !nuevoComensal) {
         console.error('Error creando comensal:', errComensal);
+        setErrorPedido(`No se pudo registrar el comensal: ${errComensal?.message || 'error de permisos en la base de datos. Verifica las políticas RLS.'}`);
+        setEnviando(false);
         return;
       }
       comensal = nuevoComensal;
@@ -143,6 +140,12 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
     });
     if (errOrder || !order) {
       console.error('Error creando orden:', errOrder);
+      setErrorPedido(`No se pudo crear el pedido: ${errOrder?.message || 'error de permisos en la base de datos. Verifica las políticas RLS.'}`);
+      // Limpiar el comensal recién creado para evitar duplicados en siguiente intento
+      if (comensal && !comensalActivo) {
+        await db.update('rest:comensales', comensal.id, { left_at: new Date().toISOString() });
+      }
+      setEnviando(false);
       return;
     }
 
@@ -174,9 +177,11 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
     }
 
     // 5. Solo al final resetear estado y refrescar
+    setEnviando(false);
     setPanelDerecho('detalle');
     setComensalActivo(null);
     setConfigPedido(null);
+    setErrorPedido(null);
     refresh();  // ← una sola vez, al final
   };
 
@@ -375,13 +380,36 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
                 />
               )}
               {panelDerecho === 'pedido' && mesaSeleccionada && configPedido && (
-                <TomarPedido
-                  mesaActiva={mesaSeleccionada}
-                  config={configPedido}
-                  menu={menu}
-                  onCancel={() => setPanelDerecho('detalle')}
-                  onEnviar={enviarPedido}
-                />
+                <>
+                  {errorPedido && (
+                    <div style={{
+                      marginBottom: 12,
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      background: '#fef2f2',
+                      border: '1px solid #fca5a5',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 10,
+                    }}>
+                      <AlertTriangle size={16} color="#ef4444" style={{ flexShrink: 0, marginTop: 1 }} />
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#dc2626', marginBottom: 2 }}>
+                          Error al enviar el pedido
+                        </div>
+                        <p style={{ fontSize: 11, color: '#7f1d1d', margin: 0 }}>{errorPedido}</p>
+                      </div>
+                    </div>
+                  )}
+                  <TomarPedido
+                    mesaActiva={mesaSeleccionada}
+                    config={configPedido}
+                    menu={menu}
+                    enviando={enviando}
+                    onCancel={() => { setPanelDerecho('detalle'); setErrorPedido(null); }}
+                    onEnviar={enviarPedido}
+                  />
+                </>
               )}
             </div>
           </div>
