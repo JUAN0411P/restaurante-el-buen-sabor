@@ -98,92 +98,206 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
     setComensalActivo(null); // aún no existe en DB
     setPanelDerecho('pedido');
   };
+
+
   const enviarPedido = async (carrito) => {
     if (carrito.length === 0) return;
     setErrorPedido(null);
     setEnviando(true);
 
-    // 1. Reutilizar el comensal existente o crear uno nuevo (primer pedido)
-    const tipoFinal = configPedido.tipo === 'invitado' ? 'invitado' : configPedido.tipo;
-    let comensal = comensalActivo;
-    if (!comensal) {
-      const { data: nuevoComensal, error: errComensal } = await db.insert('rest:comensales', {
-        mesa_id: mesaSeleccionada.id,
-        nombre: configPedido.nombre,
-        tipo: tipoFinal,
+    try {
+      // 1. Crear o reutilizar comensal
+      const tipoFinal = configPedido.tipo === 'invitado' ? 'invitado' : configPedido.tipo;
+      let comensal = comensalActivo;
+
+      if (!comensal) {
+        const { data: nuevoComensal, error: errComensal } = await db.insert('rest:comensales', {
+          mesa_id: mesaSeleccionada.id,
+          nombre: configPedido.nombre,
+          tipo: tipoFinal,
+          suscriptor_id: configPedido.suscriptor?.id || null,
+        });
+
+        if (errComensal || !nuevoComensal) {
+          console.error('❌ Error creando comensal:', errComensal);
+          setErrorPedido('Error creando comensal');
+          setEnviando(false);
+          return;
+        }
+
+        comensal = nuevoComensal;
+      }
+
+      // 2. Crear orden
+      const requiereAprobacion = tipoFinal === 'suscripcion' || tipoFinal === 'invitado';
+      const total = requiereAprobacion
+        ? 0
+        : carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+
+      const { data: order, error: errOrder } = await db.insert('rest:orders', {
+        comensal_id: comensal.id,
+        mesa_numero: mesaSeleccionada.numero,
+        mesero_id: user.id,
         suscriptor_id: configPedido.suscriptor?.id || null,
+        tipo: requiereAprobacion ? 'suscripcion' : 'menu',
+        es_invitado: tipoFinal === 'invitado',
+        items: carrito.map(c => ({
+          id: c.id,
+          nombre: c.nombre,
+          cantidad: c.cantidad,
+          precio: c.precio
+        })),
+        total,
+        estado: requiereAprobacion ? 'esperando-aprobacion' : 'pendiente',
+        pagado: false,
       });
-      if (errComensal || !nuevoComensal) {
-        console.error('Error creando comensal:', errComensal);
-        setErrorPedido(`No se pudo registrar el comensal: ${errComensal?.message || 'error de permisos en la base de datos. Verifica las políticas RLS.'}`);
+
+      if (errOrder || !order) {
+        console.error('❌ Error creando orden:', errOrder);
+        setErrorPedido('Error creando pedido');
         setEnviando(false);
         return;
       }
-      comensal = nuevoComensal;
-    }
 
-    // 2. Crear la orden
-    const requiereAprobacion = tipoFinal === 'suscripcion' || tipoFinal === 'invitado';
-    const total = requiereAprobacion ? 0 : carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+      console.log('✅ Orden creada:', order);
 
-    const { data: order, error: errOrder } = await db.insert('rest:orders', {
-      comensal_id: comensal.id,
-      mesa_numero: mesaSeleccionada.numero,
-      mesero_id: user.id,
-      suscriptor_id: configPedido.suscriptor?.id || null,
-      tipo: requiereAprobacion ? 'suscripcion' : 'menu',
-      es_invitado: tipoFinal === 'invitado',
-      items: carrito.map(c => ({ id: c.id, nombre: c.nombre, cantidad: c.cantidad, precio: c.precio })),
-      total,
-      estado: requiereAprobacion ? 'esperando-aprobacion' : 'pendiente',
-      pagado: false,
-    });
-    if (errOrder || !order) {
-      console.error('Error creando orden:', errOrder);
-      setErrorPedido(`No se pudo crear el pedido: ${errOrder?.message || 'error de permisos en la base de datos. Verifica las políticas RLS.'}`);
-      // Limpiar el comensal recién creado para evitar duplicados en siguiente intento
-      if (comensal && !comensalActivo) {
-        await db.update('rest:comensales', comensal.id, { left_at: new Date().toISOString() });
-      }
-      setEnviando(false);
-      return;
-    }
+      // 3. 🔔 NOTIFICACIÓN (AQUÍ ESTABA EL PROBLEMA)
+      if (requiereAprobacion) {
+        if (!configPedido.suscriptor?.id) {
+          console.warn('⚠️ No hay suscriptor_id, no se envía notificación');
+        } else {
+          console.log('📨 Enviando notificación a suscriptor:', configPedido.suscriptor.id);
 
-    // 3. Notificar si requiere aprobación
-    if (requiereAprobacion && configPedido.suscriptor) {
-      await crearNotificacion({
-        tipo: 'pedido-pendiente',
-        titulo: tipoFinal === 'invitado'
-          ? '🔔 Pedido de invitado pendiente de aprobar'
-          : '🔔 Pedido pendiente de aprobar',
-        mensaje: `Mesa ${mesaSeleccionada.numero}: ${carrito.map(c => `${c.cantidad}× ${c.nombre}`).join(', ')}.`,
-        suscriptor_id: configPedido.suscriptor.id,
-        order_id: order.id,
-      });
-    }
-
-    // 4. Descontar disponibles del menú
-    if (!requiereAprobacion) {
-      await Promise.all(
-        carrito.map(c => {
-          const itemMenu = menu.find(m => m.id === c.id);
-          if (!itemMenu) return Promise.resolve();
-          return db.update('rest:menu', c.id, {
-            disponibles: Math.max(0, itemMenu.disponibles - c.cantidad),
-            vendidos: (itemMenu.vendidos || 0) + c.cantidad,
+          await crearNotificacion({
+            tipo: 'pedido-pendiente',
+            titulo: tipoFinal === 'invitado'
+              ? '🔔 Pedido de invitado pendiente'
+              : '🔔 Pedido pendiente',
+            mensaje: `Mesa ${mesaSeleccionada.numero}: ${carrito.map(c => `${c.cantidad}× ${c.nombre}`).join(', ')}`,
+            suscriptor_id: configPedido.suscriptor.id,
+            order_id: order.id,
           });
-        })
-      );
-    }
 
-    // 5. Solo al final resetear estado y refrescar
-    setEnviando(false);
-    setPanelDerecho('detalle');
-    setComensalActivo(null);
-    setConfigPedido(null);
-    setErrorPedido(null);
-    refresh();  // ← una sola vez, al final
-  };
+          console.log('✅ Notificación enviada');
+        }
+      }
+
+      // 4. Descontar menú
+      if (!requiereAprobacion) {
+        await Promise.all(
+          carrito.map(c => {
+            const itemMenu = menu.find(m => m.id === c.id);
+            if (!itemMenu) return Promise.resolve();
+
+            return db.update('rest:menu', c.id, {
+              disponibles: Math.max(0, itemMenu.disponibles - c.cantidad),
+              vendidos: (itemMenu.vendidos || 0) + c.cantidad,
+            });
+          })
+        );
+      }
+
+      // 5. Final
+      setEnviando(false);
+      setPanelDerecho('detalle');
+      setComensalActivo(null);
+      setConfigPedido(null);
+      setErrorPedido(null);
+
+      await refresh(); // 🔥 importante
+
+    } catch (err) {
+      console.error('❌ Error general:', err);
+      setErrorPedido('Error inesperado');
+      setEnviando(false);
+    }
+  };  
+  // const enviarPedido = async (carrito) => {
+  //   if (carrito.length === 0) return;
+  //   setErrorPedido(null);
+  //   setEnviando(true);
+
+  //   // 1. Reutilizar el comensal existente o crear uno nuevo (primer pedido)
+  //   const tipoFinal = configPedido.tipo === 'invitado' ? 'invitado' : configPedido.tipo;
+  //   let comensal = comensalActivo;
+  //   if (!comensal) {
+  //     const { data: nuevoComensal, error: errComensal } = await db.insert('rest:comensales', {
+  //       mesa_id: mesaSeleccionada.id,
+  //       nombre: configPedido.nombre,
+  //       tipo: tipoFinal,
+  //       suscriptor_id: configPedido.suscriptor?.id || null,
+  //     });
+  //     if (errComensal || !nuevoComensal) {
+  //       console.error('Error creando comensal:', errComensal);
+  //       setErrorPedido(`No se pudo registrar el comensal: ${errComensal?.message || 'error de permisos en la base de datos. Verifica las políticas RLS.'}`);
+  //       setEnviando(false);
+  //       return;
+  //     }
+  //     comensal = nuevoComensal;
+  //   }
+
+  //   // 2. Crear la orden
+  //   const requiereAprobacion = tipoFinal === 'suscripcion' || tipoFinal === 'invitado';
+  //   const total = requiereAprobacion ? 0 : carrito.reduce((s, i) => s + i.precio * i.cantidad, 0);
+
+  //   const { data: order, error: errOrder } = await db.insert('rest:orders', {
+  //     comensal_id: comensal.id,
+  //     mesa_numero: mesaSeleccionada.numero,
+  //     mesero_id: user.id,
+  //     suscriptor_id: configPedido.suscriptor?.id || null,
+  //     tipo: requiereAprobacion ? 'suscripcion' : 'menu',
+  //     es_invitado: tipoFinal === 'invitado',
+  //     items: carrito.map(c => ({ id: c.id, nombre: c.nombre, cantidad: c.cantidad, precio: c.precio })),
+  //     total,
+  //     estado: requiereAprobacion ? 'esperando-aprobacion' : 'pendiente',
+  //     pagado: false,
+  //   });
+  //   if (errOrder || !order) {
+  //     console.error('Error creando orden:', errOrder);
+  //     setErrorPedido(`No se pudo crear el pedido: ${errOrder?.message || 'error de permisos en la base de datos. Verifica las políticas RLS.'}`);
+  //     // Limpiar el comensal recién creado para evitar duplicados en siguiente intento
+  //     if (comensal && !comensalActivo) {
+  //       await db.update('rest:comensales', comensal.id, { left_at: new Date().toISOString() });
+  //     }
+  //     setEnviando(false);
+  //     return;
+  //   }
+
+  //   // 3. Notificar si requiere aprobación
+  //   if (requiereAprobacion && configPedido.suscriptor) {
+  //     await crearNotificacion({
+  //       tipo: 'pedido-pendiente',
+  //       titulo: tipoFinal === 'invitado'
+  //         ? '🔔 Pedido de invitado pendiente de aprobar'
+  //         : '🔔 Pedido pendiente de aprobar',
+  //       mensaje: `Mesa ${mesaSeleccionada.numero}: ${carrito.map(c => `${c.cantidad}× ${c.nombre}`).join(', ')}.`,
+  //       suscriptor_id: configPedido.suscriptor.id,
+  //       order_id: order.id,
+  //     });
+  //   }
+
+  //   // 4. Descontar disponibles del menú
+  //   if (!requiereAprobacion) {
+  //     await Promise.all(
+  //       carrito.map(c => {
+  //         const itemMenu = menu.find(m => m.id === c.id);
+  //         if (!itemMenu) return Promise.resolve();
+  //         return db.update('rest:menu', c.id, {
+  //           disponibles: Math.max(0, itemMenu.disponibles - c.cantidad),
+  //           vendidos: (itemMenu.vendidos || 0) + c.cantidad,
+  //         });
+  //       })
+  //     );
+  //   }
+
+  //   // 5. Solo al final resetear estado y refrescar
+  //   setEnviando(false);
+  //   setPanelDerecho('detalle');
+  //   setComensalActivo(null);
+  //   setConfigPedido(null);
+  //   setErrorPedido(null);
+  //   refresh();  // ← una sola vez, al final
+  // };
 
   // const enviarPedido = async (carrito) => {
   //   if (carrito.length === 0) return;

@@ -3,6 +3,10 @@ import { Plus, Minus, ChefHat, Clock } from 'lucide-react';
 import { T, FontFraunces, FontMono } from '../../lib/tokens';
 import { formatMoney } from '../../lib/utils';
 import { Tag, Btn, KickerLabel } from '../ui/primitives';
+import { crearNotificacion } from '../ui/NotificationsPanel';
+
+
+
 
 export function TomarPedido({ mesaActiva, config, menu, enviando, onCancel, onEnviar }) {
   const [carrito, setCarrito] = useState([]);
@@ -150,7 +154,7 @@ export function TomarPedido({ mesaActiva, config, menu, enviando, onCancel, onEn
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                   <Btn variant="ghost" onClick={onCancel} disabled={enviando}>Cancelar</Btn>
-                  <Btn full icon={enviando ? Clock : (requiereAprobacion ? Clock : ChefHat)} onClick={() => onEnviar(carrito)} disabled={enviando}>
+                  <Btn full icon={enviando ? Clock : (requiereAprobacion ? Clock : ChefHat)} onClick={() => onEnviar({ carrito, config, mesa, requiereAprobacion })} disabled={enviando}>
                     {enviando ? 'Enviando…' : requiereAprobacion ? 'Enviar para aprobación →' : 'Enviar a cocina →'}
                   </Btn>
                 </div>
