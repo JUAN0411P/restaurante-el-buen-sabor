@@ -33,7 +33,7 @@ const TIPO_COLORS = {
   'aviso-general': 'gray',
 };
 
-export function NotificationsPanel({ open, onClose, notifications, refresh, onAction, canApprove = false }) {
+export function NotificationsPanel({ open, onClose, notifications, refresh, onAction, canApprove = false, canApprovePedido = false }) {
   const sorted = [...notifications].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   // ✅ CORREGIDO
@@ -80,6 +80,7 @@ export function NotificationsPanel({ open, onClose, notifications, refresh, onAc
               const Icon = TIPO_ICONS[n.tipo] || Bell;
               const color = TIPO_COLORS[n.tipo] || 'gray';
               const esSolicitudExtension = n.tipo === 'solicitud-extension' && canApprove;
+              const esPedidoPendiente = n.tipo === 'pedido-pendiente' && canApprovePedido;
               const yaProcesada = n.procesada;
 
               return (
@@ -119,6 +120,10 @@ export function NotificationsPanel({ open, onClose, notifications, refresh, onAc
                           <ExtensionActions notif={n} refresh={refresh} />
                         )}
 
+                        {esPedidoPendiente && !yaProcesada && (
+                          <PedidoActions notif={n} refresh={refresh} onClose={onClose} />
+                        )}
+
                         {!n.leida && (
                           <button onClick={() => marcarLeida(n.id)} className="text-xs font-medium" style={{ color: T.accent }}>
                             Marcar leída
@@ -144,6 +149,98 @@ export function NotificationsPanel({ open, onClose, notifications, refresh, onAc
         </>
       )}
     </Modal>
+  );
+}
+
+function PedidoActions({ notif, refresh, onClose }) {
+  const [procesando, setProcesando] = useState(false);
+
+  const aprobar = async () => {
+    if (!confirm('¿Aprobar este pedido? Se enviará a cocina y se descontará de tu plan.')) return;
+    setProcesando(true);
+    try {
+      const allOrders = await db.get('rest:orders', []);
+      const order = allOrders.find(o => o.id === notif.order_id);
+      if (!order) { alert('No se encontró el pedido.'); return; }
+
+      await db.update('rest:orders', order.id, {
+        estado: 'pendiente',
+        aprobadoEn: new Date().toISOString(),
+      });
+
+      const allSubs = await db.get('rest:subs', []);
+      const sub = allSubs.find(s => s.id === notif.suscriptor_id);
+      if (sub) {
+        await db.update('rest:subs', sub.id, {
+          almuerzos_restantes: Math.max(0, (sub.almuerzos_restantes || 0) - 1),
+        });
+      }
+
+      const allMenu = await db.get('rest:menu', []);
+      await Promise.all(
+        (order.items || []).map(item => {
+          const m = allMenu.find(x => x.id === item.id);
+          if (!m) return Promise.resolve();
+          return db.update('rest:menu', m.id, {
+            disponibles: Math.max(0, m.disponibles - item.cantidad),
+            vendidos: (m.vendidos || 0) + item.cantidad,
+          });
+        })
+      );
+
+      await db.update('rest:notifications', notif.id, {
+        procesada: true,
+        procesadaResultado: 'aprobada',
+        leida: true,
+      });
+
+      refresh();
+      onClose();
+    } catch (e) {
+      console.error('Error aprobando pedido:', e);
+      alert('Error al aprobar el pedido.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const rechazar = async () => {
+    if (!confirm('¿Rechazar este pedido? No se cobrará ni se enviará a cocina.')) return;
+    setProcesando(true);
+    try {
+      const allOrders = await db.get('rest:orders', []);
+      const order = allOrders.find(o => o.id === notif.order_id);
+      if (order) {
+        await db.update('rest:orders', order.id, {
+          estado: 'rechazado',
+          rechazadoEn: new Date().toISOString(),
+        });
+      }
+
+      await db.update('rest:notifications', notif.id, {
+        procesada: true,
+        procesadaResultado: 'rechazada',
+        leida: true,
+      });
+
+      refresh();
+    } catch (e) {
+      console.error('Error rechazando pedido:', e);
+      alert('Error al rechazar el pedido.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  return (
+    <>
+      <Btn size="sm" variant="success" icon={Check} onClick={aprobar} disabled={procesando}>
+        {procesando ? 'Procesando…' : 'Aprobar'}
+      </Btn>
+      <Btn size="sm" variant="danger" icon={X} onClick={rechazar} disabled={procesando}>
+        Rechazar
+      </Btn>
+    </>
   );
 }
 

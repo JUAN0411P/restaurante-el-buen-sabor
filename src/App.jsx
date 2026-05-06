@@ -225,6 +225,7 @@ export default function App() {
         notifications={relevantNotifs}
         refresh={store.refresh}
         canApprove={role.type === 'admin'}
+        canApprovePedido={role.type === 'suscriptor'}
       />
     </>
   );
