@@ -9,7 +9,7 @@ import { Card, Tag, Btn, KickerLabel } from '../ui/primitives';
  * MesaDetalle — lives inside the right split-view panel.
  * No "back" button: the parent X handles closing.
  */
-export function MesaDetalle({ mesaActiva, mesaData, orders, mesas, onAgregarComensal, onTomarPedido }) {
+export function MesaDetalle({ mesaActiva, mesaData, orders, mesas, onAgregarComensal, onTomarPedido, refresh }) {
   // const removerComensal = async (comensalId) => {
   //   if (!confirm('¿El comensal se va de la mesa?')) return;
   //   const ordersComensal = orders.filter(o => o.comensal_id === comensalId);

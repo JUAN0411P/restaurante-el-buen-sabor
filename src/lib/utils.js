@@ -12,7 +12,7 @@ const TABLE_MAP = {
   'rest:subs':          'suscriptores',
   'rest:mesas':         'mesas',
   'rest:orders':        'orders',
-  'rest:events':        'even ts',
+  'rest:events':        'events',
   'rest:notifications': 'notifications',
   'rest:comensales': 'comensales',
 };

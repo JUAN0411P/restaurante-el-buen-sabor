@@ -108,17 +108,21 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
   const enviarPedido = async (carrito) => {
     if (carrito.length === 0) return;
 
-    // 1. Crear comensal en Supabase
+    // 1. Reutilizar el comensal existente o crear uno nuevo (primer pedido)
     const tipoFinal = configPedido.tipo === 'invitado' ? 'invitado' : configPedido.tipo;
-    const { data: comensal, error: errComensal } = await db.insert('rest:comensales', {
-      mesa_id: mesaSeleccionada.id,
-      nombre: configPedido.nombre,
-      tipo: tipoFinal,
-      suscriptor_id: configPedido.suscriptor?.id || null,
-    });
-    if (errComensal || !comensal) {
-      console.error('Error creando comensal:', errComensal);
-      return;
+    let comensal = comensalActivo;
+    if (!comensal) {
+      const { data: nuevoComensal, error: errComensal } = await db.insert('rest:comensales', {
+        mesa_id: mesaSeleccionada.id,
+        nombre: configPedido.nombre,
+        tipo: tipoFinal,
+        suscriptor_id: configPedido.suscriptor?.id || null,
+      });
+      if (errComensal || !nuevoComensal) {
+        console.error('Error creando comensal:', errComensal);
+        return;
+      }
+      comensal = nuevoComensal;
     }
 
     // 2. Crear la orden
@@ -358,6 +362,7 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
                   mesas={mesas}
                   onAgregarComensal={abrirAgregarComensal}
                   onTomarPedido={tomarPedidoDeComensal}
+                  refresh={refresh}
                 />
               )}
               {panelDerecho === 'agregar' && mesaData && (
