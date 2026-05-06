@@ -3,7 +3,6 @@ import { Bell, UserPlus, Clock, CheckCircle2, X, Utensils, Check, Calendar } fro
 import { T } from '../../lib/tokens';
 import { db, formatDateTime } from '../../lib/utils';
 import { Modal, EmptyState, Btn, Tag } from './primitives';
-import { db, supabase, formatDateTime } from '../../lib/utils';
 
 
 
