@@ -1,34 +1,39 @@
-import {
-  Clock, Check, UtensilsCrossed, Coffee
-} from 'lucide-react';
+import { useState } from 'react';
+import { Clock, Check, UtensilsCrossed, Coffee } from 'lucide-react';
 import { T, FontFraunces, FontMono } from '../../lib/tokens';
 import { db, todayISO, minutesAgo } from '../../lib/utils';
 import { Tag, Btn, EmptyState } from '../ui/primitives';
 
 export function CocinaPanel({ orders, mesas, refresh }) {
-
   const pendientes = orders.filter(o => o.estado === 'pendiente' || o.estado === 'preparando');
-  const ordersSusc = pendientes.filter(o => o.tipo === 'suscripcion').sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
-  const ordersMenu = pendientes.filter(o => o.tipo === 'menu').sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+  const ordersSusc = pendientes
+    .filter(o => o.tipo === 'suscripcion')
+    .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+  const ordersMenu = pendientes
+    .filter(o => o.tipo === 'menu')
+    .sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
   const today = todayISO();
-  const totalSuscHoy = orders.filter(o => o.tipo === 'suscripcion' && o.estado === 'entregado' && o.fecha?.slice(0, 10) === today).length;
-  const totalMenuHoy = orders.filter(o => o.tipo === 'menu' && o.estado === 'entregado' && o.fecha?.slice(0, 10) === today).length;
+  const totalSuscHoy = orders.filter(
+    o => o.tipo === 'suscripcion' && o.estado === 'entregado' && o.fecha?.slice(0, 10) === today
+  ).length;
+  const totalMenuHoy = orders.filter(
+    o => o.tipo === 'menu' && o.estado === 'entregado' && o.fecha?.slice(0, 10) === today
+  ).length;
 
-  // Tiempo promedio de los entregados hoy
-  const entregadosHoy = orders.filter(o => o.estado === 'entregado' && o.fechaEntrega && o.fecha?.slice(0, 10) === today);
-  const promedioMin = entregadosHoy.length > 0
-    ? Math.round(entregadosHoy.reduce((s, o) => s + (new Date(o.fechaEntrega) - new Date(o.fecha)) / 60000, 0) / entregadosHoy.length)
-    : 0;
+  const entregadosHoy = orders.filter(
+    o => o.estado === 'entregado' && o.fechaEntrega && o.fecha?.slice(0, 10) === today
+  );
+  const promedioMin =
+    entregadosHoy.length > 0
+      ? Math.round(
+          entregadosHoy.reduce(
+            (s, o) => s + (new Date(o.fechaEntrega) - new Date(o.fecha)) / 60000,
+            0
+          ) / entregadosHoy.length
+        )
+      : 0;
 
-  // const cambiarEstado = async (id, nuevoEstado) => {
-  //   const currentOrders = await db.get('rest:orders', []);
-  //   await db.set('rest:orders', currentOrders.map(o => o.id === id
-  //     ? { ...o, estado: nuevoEstado, [`fecha_${nuevoEstado}`]: new Date().toISOString() }
-  //     : o));
-  //   refresh();
-  // };
-// Reemplaza la función cambiarEstado completa:
   const cambiarEstado = async (id, nuevoEstado) => {
     const cambios = { estado: nuevoEstado };
     if (nuevoEstado === 'preparando') cambios.fecha_preparando = new Date().toISOString();
@@ -38,41 +43,45 @@ export function CocinaPanel({ orders, mesas, refresh }) {
     refresh();
   };
 
-  const reveal = () => {};
-
   return (
     <div>
       {/* Stats pills */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 22 }} className="grid sm:grid-cols-3 grid-cols-1">
+      <div
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 22 }}
+        className="grid sm:grid-cols-3 grid-cols-1"
+      >
         <StatPill label="SUSCRIPCIONES HOY" value={totalSuscHoy} bg={T.oliveSoft} fg={T.olive} />
         <StatPill label="MENÚ DEL DÍA HOY" value={totalMenuHoy} bg={T.mustardSoft} fg={T.mustard} />
-        <StatPill label="TIEMPO PROMEDIO" value={promedioMin > 0 ? `${promedioMin}` : '—'} bg={T.bgSoft} fg={T.text} suffix="min/plato" />
+        <StatPill
+          label="TIEMPO PROMEDIO"
+          value={promedioMin > 0 ? `${promedioMin}` : '—'}
+          bg={T.bgSoft}
+          fg={T.text}
+          suffix="min/plato"
+        />
       </div>
 
       {/* Two columns */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }} className="grid md:grid-cols-2 grid-cols-1">
-        {/* Mensualidad */}
+      <div
+        style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}
+        className="grid md:grid-cols-2 grid-cols-1"
+      >
         <ColumnaCocina
           titulo="Mensualidad"
           dotColor={T.olive}
           tagTone="olive"
           bgColor={T.oliveSoft}
           orders={ordersSusc}
-          revealedIds={revealedIds}
-          onReveal={reveal}
           onCambiarEstado={cambiarEstado}
           mesas={mesas}
           emptyIcon={Coffee}
         />
-        {/* Menú del día */}
         <ColumnaCocina
           titulo="Menú del día"
           dotColor={T.mustard}
           tagTone="mustard"
           bgColor={T.mustardSoft}
           orders={ordersMenu}
-          revealedIds={revealedIds}
-          onReveal={reveal}
           onCambiarEstado={cambiarEstado}
           mesas={mesas}
           emptyIcon={UtensilsCrossed}
@@ -96,16 +105,20 @@ function StatPill({ label, value, bg, fg, suffix }) {
     >
       <div style={{ ...FontFraunces, fontSize: 32, color: fg, lineHeight: 1 }}>{value}</div>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 10, color: T.textSoft, ...FontMono, letterSpacing: '.1em', fontWeight: 600 }}>
+        <div
+          style={{ fontSize: 10, color: T.textSoft, ...FontMono, letterSpacing: '.1em', fontWeight: 600 }}
+        >
           {label}
         </div>
-        {suffix && <div style={{ fontSize: 11, color: T.textMute, marginTop: 2 }}>{suffix}</div>}
+        {suffix && (
+          <div style={{ fontSize: 11, color: T.textMute, marginTop: 2 }}>{suffix}</div>
+        )}
       </div>
     </div>
   );
 }
 
-function ColumnaCocina({ titulo, dotColor, tagTone, bgColor, orders: cola, revealedIds, onReveal, onCambiarEstado, mesas, emptyIcon }) {
+function ColumnaCocina({ titulo, dotColor, tagTone, bgColor, orders: cola, onCambiarEstado, mesas, emptyIcon }) {
   return (
     <div>
       <div
@@ -140,8 +153,6 @@ function ColumnaCocina({ titulo, dotColor, tagTone, bgColor, orders: cola, revea
               orden={o}
               posicion={idx + 1}
               esTurno={idx === 0}
-              revealed={revealedIds.has(o.id)}
-              onReveal={onReveal}
               onCambiarEstado={onCambiarEstado}
               mesas={mesas}
             />
@@ -152,9 +163,9 @@ function ColumnaCocina({ titulo, dotColor, tagTone, bgColor, orders: cola, revea
   );
 }
 
-function Ticket({ orden, posicion, esTurno, revealed, onReveal, onCambiarEstado, mesas }) {
-  const mesa = mesas.find(m => m.numero === orden.mesa);
-  const comensal = mesa?.comensales.find(c => c.id === orden.comensal_id);
+function Ticket({ orden, posicion, esTurno, onCambiarEstado, mesas }) {
+  const mesa = mesas.find(m => m.numero === orden.mesa_numero || m.numero === orden.mesa);
+  const comensal = mesa?.comensales?.find(c => c.id === orden.comensal_id);
   const min = minutesAgo(orden.fecha);
   const esRetrasado = min >= 10;
 
@@ -164,7 +175,6 @@ function Ticket({ orden, posicion, esTurno, revealed, onReveal, onCambiarEstado,
       ? { label: 'PLAN MENSUAL', tone: 'olive' }
       : { label: 'CLIENTE DÍA', tone: 'mustard' };
 
-  // Pedidos siempre visibles — ya no se bloquean
   return (
     <div
       className={esRetrasado ? 'ebs-late' : ''}
@@ -181,7 +191,17 @@ function Ticket({ orden, posicion, esTurno, revealed, onReveal, onCambiarEstado,
         position: 'relative',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 12, flexWrap: 'wrap', gap: 6 }}>
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'start',
+          marginBottom: 12,
+          flexWrap: 'wrap',
+          gap: 6,
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <div
             style={{
@@ -195,19 +215,26 @@ function Ticket({ orden, posicion, esTurno, revealed, onReveal, onCambiarEstado,
           >
             {posicion}
           </div>
-          <span style={{ ...FontFraunces, fontSize: 20, color: T.text }}>Mesa {orden.mesa}</span>
+          <span style={{ ...FontFraunces, fontSize: 20, color: T.text }}>
+            Mesa {orden.mesa_numero ?? orden.mesa}
+          </span>
           <Tag tone={tagInfo.tone} size="xs">{tagInfo.label}</Tag>
           {orden.estado === 'preparando' && <Tag tone="mustard" size="xs">PREPARANDO</Tag>}
-          {esRetrasado && (
-            <Tag tone="red" size="xs">⚠ {min} MIN</Tag>
-          )}
+          {esRetrasado && <Tag tone="red" size="xs">⚠ {min} MIN</Tag>}
         </div>
-        <span style={{ ...FontMono, fontSize: 11, color: esRetrasado ? '#a83c2c' : T.textMute, fontWeight: esRetrasado ? 700 : 400 }}>
+        <span
+          style={{
+            ...FontMono,
+            fontSize: 11,
+            color: esRetrasado ? '#a83c2c' : T.textMute,
+            fontWeight: esRetrasado ? 700 : 400,
+          }}
+        >
           {min < 1 ? 'recién' : `${min} min`}
         </span>
       </div>
 
-      {/* Comensal name */}
+      {/* Nombre comensal */}
       {comensal && (
         <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 8, ...FontMono }}>
           {comensal.nombre}
@@ -217,7 +244,7 @@ function Ticket({ orden, posicion, esTurno, revealed, onReveal, onCambiarEstado,
 
       {/* Items con observaciones */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
-        {orden.items.map((it, i) => (
+        {(orden.items ?? []).map((it, i) => (
           <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: T.text }}>
               <span
@@ -240,6 +267,7 @@ function Ticket({ orden, posicion, esTurno, revealed, onReveal, onCambiarEstado,
                 style={{
                   marginLeft: 32,
                   padding: '3px 8px',
+                  borderRadius: 6,
                   fontSize: 11,
                   fontWeight: 700,
                   color: '#7a5a00',
@@ -257,13 +285,26 @@ function Ticket({ orden, posicion, esTurno, revealed, onReveal, onCambiarEstado,
         ))}
       </div>
 
+      {/* Acciones */}
       {esTurno && orden.estado === 'pendiente' && (
-        <Btn variant="dark" size="sm" full icon={Clock} onClick={() => onCambiarEstado(orden.id, 'preparando')}>
+        <Btn
+          variant="dark"
+          size="sm"
+          full
+          icon={Clock}
+          onClick={() => onCambiarEstado(orden.id, 'preparando')}
+        >
           ▶ Empezar a preparar
         </Btn>
       )}
       {esTurno && orden.estado === 'preparando' && (
-        <Btn variant="primary" size="sm" full icon={Check} onClick={() => onCambiarEstado(orden.id, 'listo')}>
+        <Btn
+          variant="primary"
+          size="sm"
+          full
+          icon={Check}
+          onClick={() => onCambiarEstado(orden.id, 'listo')}
+        >
           Marcar como listo
         </Btn>
       )}
