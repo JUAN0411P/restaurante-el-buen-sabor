@@ -145,7 +145,8 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
           id: c.id,
           nombre: c.nombre,
           cantidad: c.cantidad,
-          precio: c.precio
+          precio: c.precio,
+          observacion: c.observacion || null,
         })),
         total,
         estado: requiereAprobacion ? 'esperando-aprobacion' : 'pendiente',

@@ -14,12 +14,15 @@ export function TomarPedido({ mesaActiva, config, menu, enviando, onCancel, onEn
   const addCarrito = (item) => {
     const existing = carrito.find(c => c.id === item.id);
     if (existing) setCarrito(carrito.map(c => c.id === item.id ? { ...c, cantidad: c.cantidad + 1 } : c));
-    else setCarrito([...carrito, { ...item, cantidad: 1 }]);
+    else setCarrito([...carrito, { ...item, cantidad: 1, observacion: '' }]);
   };
   const removeCarrito = (id) => {
     const e = carrito.find(c => c.id === id);
     if (e.cantidad > 1) setCarrito(carrito.map(c => c.id === id ? { ...c, cantidad: c.cantidad - 1 } : c));
     else setCarrito(carrito.filter(c => c.id !== id));
+  };
+  const setObservacion = (id, obs) => {
+    setCarrito(carrito.map(c => c.id === id ? { ...c, observacion: obs } : c));
   };
 
   const requiereAprobacion = tipoMostrar === 'suscripcion' || tipoMostrar === 'invitado';
@@ -109,35 +112,54 @@ export function TomarPedido({ mesaActiva, config, menu, enviando, onCancel, onEn
                 key={c.id}
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
+                  flexDirection: 'column',
                   padding: '8px 0',
                   borderBottom: `1px solid ${T.borderSoft}`,
+                  gap: 6,
                 }}
               >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: T.text, margin: 0 }}>{c.nombre}</p>
-                  {!requiereAprobacion && (
-                    <p style={{ fontSize: 11, color: T.textSoft, margin: 0, ...FontMono }}>
-                      {formatMoney(c.precio * c.cantidad)}
-                    </p>
-                  )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: T.text, margin: 0 }}>{c.nombre}</p>
+                    {!requiereAprobacion && (
+                      <p style={{ fontSize: 11, color: T.textSoft, margin: 0, ...FontMono }}>
+                        {formatMoney(c.precio * c.cantidad)}
+                      </p>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <button
+                      onClick={() => removeCarrito(c.id)}
+                      style={{ width: 24, height: 24, borderRadius: 6, background: T.bgSoft, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+                    >
+                      <Minus size={11} color={T.text} />
+                    </button>
+                    <span style={{ width: 22, textAlign: 'center', fontSize: 13, fontWeight: 600, color: T.text }}>{c.cantidad}</span>
+                    <button
+                      onClick={() => addCarrito(c)}
+                      style={{ width: 24, height: 24, borderRadius: 6, background: T.bgSoft, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+                    >
+                      <Plus size={11} color={T.text} />
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <button
-                    onClick={() => removeCarrito(c.id)}
-                    style={{ width: 24, height: 24, borderRadius: 6, background: T.bgSoft, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
-                  >
-                    <Minus size={11} color={T.text} />
-                  </button>
-                  <span style={{ width: 22, textAlign: 'center', fontSize: 13, fontWeight: 600, color: T.text }}>{c.cantidad}</span>
-                  <button
-                    onClick={() => addCarrito(c)}
-                    style={{ width: 24, height: 24, borderRadius: 6, background: T.bgSoft, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
-                  >
-                    <Plus size={11} color={T.text} />
-                  </button>
-                </div>
+                <input
+                  type="text"
+                  placeholder="Ej: sin cebolla, sin ensalada…"
+                  value={c.observacion || ''}
+                  onChange={e => setObservacion(c.id, e.target.value)}
+                  style={{
+                    fontSize: 11,
+                    padding: '5px 8px',
+                    borderRadius: 6,
+                    border: `1px solid ${c.observacion ? T.mustard : T.borderSoft}`,
+                    background: c.observacion ? T.mustardSoft : T.bg,
+                    color: T.text,
+                    outline: 'none',
+                    ...FontMono,
+                    transition: 'border-color .2s, background .2s',
+                  }}
+                />
               </div>
             ))}
             {carrito.length > 0 && (

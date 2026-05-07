@@ -1,13 +1,11 @@
-import { useState } from 'react';
 import {
-  Clock, Check, Lock, Eye, UtensilsCrossed, Heart, Users, Coffee
+  Clock, Check, UtensilsCrossed, Coffee
 } from 'lucide-react';
 import { T, FontFraunces, FontMono } from '../../lib/tokens';
 import { db, todayISO, minutesAgo } from '../../lib/utils';
 import { Tag, Btn, EmptyState } from '../ui/primitives';
 
 export function CocinaPanel({ orders, mesas, refresh }) {
-  const [revealedIds, setRevealedIds] = useState(new Set());
 
   const pendientes = orders.filter(o => o.estado === 'pendiente' || o.estado === 'preparando');
   const ordersSusc = pendientes.filter(o => o.tipo === 'suscripcion').sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
@@ -40,7 +38,7 @@ export function CocinaPanel({ orders, mesas, refresh }) {
     refresh();
   };
 
-  const reveal = (id) => setRevealedIds(prev => new Set([...prev, id]));
+  const reveal = () => {};
 
   return (
     <div>
@@ -158,6 +156,7 @@ function Ticket({ orden, posicion, esTurno, revealed, onReveal, onCambiarEstado,
   const mesa = mesas.find(m => m.numero === orden.mesa);
   const comensal = mesa?.comensales.find(c => c.id === orden.comensal_id);
   const min = minutesAgo(orden.fecha);
+  const esRetrasado = min >= 10;
 
   const tagInfo = orden.es_invitado
     ? { label: 'INVITADO', tone: 'plum' }
@@ -165,23 +164,24 @@ function Ticket({ orden, posicion, esTurno, revealed, onReveal, onCambiarEstado,
       ? { label: 'PLAN MENSUAL', tone: 'olive' }
       : { label: 'CLIENTE DÍA', tone: 'mustard' };
 
-  const puedeVer = esTurno || revealed;
-  const locked = !esTurno && !revealed;
-
+  // Pedidos siempre visibles — ya no se bloquean
   return (
     <div
-      className={locked ? 'ebs-locked' : ''}
+      className={esRetrasado ? 'ebs-late' : ''}
       style={{
         background: esTurno ? T.card : T.cardAlt,
-        border: esTurno ? `2px solid ${T.olive}` : `1px solid ${T.border}`,
+        border: esTurno
+          ? `2px solid ${T.olive}`
+          : esRetrasado
+            ? `2px solid #a83c2c`
+            : `1px solid ${T.border}`,
         borderRadius: 14,
         padding: 14,
         marginBottom: 10,
-        opacity: locked ? 0.9 : 1,
         position: 'relative',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: locked ? 10 : 12, flexWrap: 'wrap', gap: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 12, flexWrap: 'wrap', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <div
             style={{
@@ -198,104 +198,89 @@ function Ticket({ orden, posicion, esTurno, revealed, onReveal, onCambiarEstado,
           <span style={{ ...FontFraunces, fontSize: 20, color: T.text }}>Mesa {orden.mesa}</span>
           <Tag tone={tagInfo.tone} size="xs">{tagInfo.label}</Tag>
           {orden.estado === 'preparando' && <Tag tone="mustard" size="xs">PREPARANDO</Tag>}
+          {esRetrasado && (
+            <Tag tone="red" size="xs">⚠ {min} MIN</Tag>
+          )}
         </div>
-        <span style={{ ...FontMono, fontSize: 11, color: T.textMute }}>
+        <span style={{ ...FontMono, fontSize: 11, color: esRetrasado ? '#a83c2c' : T.textMute, fontWeight: esRetrasado ? 700 : 400 }}>
           {min < 1 ? 'recién' : `${min} min`}
         </span>
       </div>
 
-      {puedeVer ? (
-        <>
-          {/* Comensal name */}
-          {comensal && (
-            <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 8, ...FontMono }}>
-              {comensal.nombre}
-              {orden.suscriptor && orden.es_invitado && ` · plan de ${orden.suscriptor.nombre}`}
+      {/* Comensal name */}
+      {comensal && (
+        <div style={{ fontSize: 12, color: T.textSoft, marginBottom: 8, ...FontMono }}>
+          {comensal.nombre}
+          {orden.suscriptor && orden.es_invitado && ` · plan de ${orden.suscriptor.nombre}`}
+        </div>
+      )}
+
+      {/* Items con observaciones */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+        {orden.items.map((it, i) => (
+          <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: T.text }}>
+              <span
+                style={{
+                  width: 22, height: 22, borderRadius: 6,
+                  background: T.bgSoft,
+                  display: 'grid', placeItems: 'center',
+                  fontSize: 11, fontWeight: 700,
+                  ...FontMono,
+                  flexShrink: 0,
+                }}
+              >
+                {it.cantidad}
+              </span>
+              {it.nombre}
             </div>
-          )}
-          {/* Items */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
-            {orden.items.map((it, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: T.text }}>
-                <span
-                  style={{
-                    width: 22, height: 22, borderRadius: 6,
-                    background: T.bgSoft,
-                    display: 'grid', placeItems: 'center',
-                    fontSize: 11, fontWeight: 700,
-                    ...FontMono,
-                  }}
-                >
-                  {it.cantidad}
-                </span>
-                {it.nombre}
+            {it.observacion && (
+              <div
+                className="ebs-obs-tag"
+                style={{
+                  marginLeft: 32,
+                  padding: '3px 8px',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#7a5a00',
+                  ...FontMono,
+                  letterSpacing: '.04em',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                ⚡ {it.observacion.toUpperCase()}
               </div>
-            ))}
+            )}
           </div>
-          {esTurno && orden.estado === 'pendiente' && (
-            <Btn variant="dark" size="sm" full icon={Clock} onClick={() => onCambiarEstado(orden.id, 'preparando')}>
-              ▶ Empezar a preparar
-            </Btn>
-          )}
-          {esTurno && orden.estado === 'preparando' && (
-            <Btn variant="primary" size="sm" full icon={Check} onClick={() => onCambiarEstado(orden.id, 'listo')}>
-              Marcar como listo
-            </Btn>
-          )}
-          {!esTurno && (
-            <div
-              style={{
-                padding: '8px 10px',
-                borderRadius: 8,
-                background: T.bg,
-                fontSize: 11,
-                color: T.textMute,
-                textAlign: 'center',
-                ...FontMono,
-                letterSpacing: '.05em',
-              }}
-            >
-              🔒 ESPERA TU TURNO · #{posicion}
-            </div>
-          )}
-        </>
-      ) : (
+        ))}
+      </div>
+
+      {esTurno && orden.estado === 'pendiente' && (
+        <Btn variant="dark" size="sm" full icon={Clock} onClick={() => onCambiarEstado(orden.id, 'preparando')}>
+          ▶ Empezar a preparar
+        </Btn>
+      )}
+      {esTurno && orden.estado === 'preparando' && (
+        <Btn variant="primary" size="sm" full icon={Check} onClick={() => onCambiarEstado(orden.id, 'listo')}>
+          Marcar como listo
+        </Btn>
+      )}
+      {!esTurno && (
         <div
           style={{
-            padding: 16,
-            borderRadius: 10,
+            padding: '8px 10px',
+            borderRadius: 8,
             background: T.bg,
+            fontSize: 11,
+            color: T.textMute,
             textAlign: 'center',
+            ...FontMono,
+            letterSpacing: '.05em',
           }}
         >
-          <span className="ebs-lock-icon" style={{ display: 'inline-block' }}>
-            <Lock size={18} color={T.textMute} />
-          </span>
-          <div style={{ fontSize: 12, color: T.textSoft, fontWeight: 600, marginTop: 4 }}>
-            Pedido bloqueado
-          </div>
-          <div style={{ fontSize: 10, color: T.textMute, marginTop: 2 }}>
-            Se revela cuando sea su turno
-          </div>
-          <button
-            onClick={() => onReveal(orden.id)}
-            style={{
-              marginTop: 8,
-              fontSize: 10,
-              color: T.terracotta,
-              ...FontMono,
-              fontWeight: 600,
-              letterSpacing: '.05em',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-            }}
-          >
-            <Eye size={11} /> VER ANTICIPADAMENTE
-          </button>
+          EN COLA · #{posicion}
         </div>
       )}
     </div>

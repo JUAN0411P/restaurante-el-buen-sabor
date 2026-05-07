@@ -13,6 +13,7 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
   const [cobrar, setCobrar] = useState(null);
   const [newSub, setNewSub] = useState(false);
   const [activarPlan, setActivarPlan] = useState(null);
+  const [montoRecibido, setMontoRecibido] = useState('');
 
   const today = todayISO();
   const ordersToday = orders.filter(o => o.fecha?.slice(0, 10) === today);
@@ -29,9 +30,18 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
       .update({ pagado: true, metodo_pago: metodo, fecha_pago: new Date().toISOString() })
       .eq('id', order.id);
 
+    // Liberar mesa automáticamente: marcar comensal como retirado
+    if (order.comensal_id) {
+      await db.update('rest:comensales', order.comensal_id, { left_at: new Date().toISOString() });
+    }
+
     setCobrar(null);
+    setMontoRecibido('');
     refresh();
   };
+
+  const montoNum = parseFloat((montoRecibido || '').replace(/[^0-9.]/g, '')) || 0;
+  const cambio = cobrar ? montoNum - cobrar.total : 0;
 
   return (
     <div>
@@ -224,7 +234,7 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
       )}
 
       {/* MODAL COBRO */}
-      <Modal open={!!cobrar} onClose={() => setCobrar(null)} title="Procesar pago">
+      <Modal open={!!cobrar} onClose={() => { setCobrar(null); setMontoRecibido(''); }} title="Procesar pago">
         {cobrar && (
           <div>
             <div style={{ padding: 16, borderRadius: 12, marginBottom: 16, background: T.bg, border: `1px solid ${T.border}` }}>
@@ -243,6 +253,57 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
                 <span style={{ ...FontFraunces, fontSize: 24, color: T.terracotta, fontStyle: 'italic' }}>{formatMoney(cobrar.total)}</span>
               </div>
             </div>
+
+            {/* Monto recibido y cambio */}
+            <div style={{ marginBottom: 16, padding: 14, borderRadius: 12, background: T.bgSoft, border: `1px solid ${T.border}` }}>
+              <KickerLabel>— monto recibido</KickerLabel>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 8 }}>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="0"
+                  value={montoRecibido}
+                  onChange={e => setMontoRecibido(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 12px',
+                    fontSize: 20,
+                    fontWeight: 700,
+                    borderRadius: 8,
+                    border: `1px solid ${T.border}`,
+                    background: T.card,
+                    color: T.text,
+                    outline: 'none',
+                    ...FontMono,
+                  }}
+                />
+              </div>
+              {montoRecibido !== '' && (
+                <div style={{
+                  marginTop: 10,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  background: cambio >= 0 ? T.oliveSoft : '#fdf0ed',
+                  border: `1px solid ${cambio >= 0 ? T.olive : '#a83c2c'}`,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'baseline',
+                }}>
+                  <span style={{ fontSize: 12, color: T.textSoft, ...FontMono, fontWeight: 600 }}>
+                    {cambio >= 0 ? 'CAMBIO A ENTREGAR' : 'FALTA'}
+                  </span>
+                  <span style={{
+                    ...FontFraunces,
+                    fontSize: 22,
+                    fontStyle: 'italic',
+                    color: cambio >= 0 ? T.olive : '#a83c2c',
+                  }}>
+                    {formatMoney(Math.abs(cambio))}
+                  </span>
+                </div>
+              )}
+            </div>
+
             <KickerLabel>— método de pago</KickerLabel>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 8 }}>
               <Btn variant="ghost" icon={Banknote} onClick={() => procesarPago(cobrar, 'efectivo')}>Efectivo</Btn>
