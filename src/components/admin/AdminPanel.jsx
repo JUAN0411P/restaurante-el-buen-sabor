@@ -84,14 +84,14 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
       {tab === 'dash' && (
         <div className="space-y-6">
           {/* Stat cards */}
-          <div style={{ display: 'grid', gap: 14 }} className="grid grid-cols-2 md:grid-cols-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <DashStat label="VENTAS MENÚ HOY" value={formatMoney(ventasMenu)} tone={T.terracotta} />
             <DashStat label="ALMUERZOS SUSC." value={ventasSubs} tone={T.olive} />
             <DashStat label="PLATOS SERVIDOS" value={platosVendidos} tone={T.mustard} />
             <DashStat label="SUSCRIPTORES" value={suscriptores.filter(s => s.activo && s.plan_id).length} tone={T.plum} />
           </div>
 
-          <div style={{ display: 'grid', gap: 18 }} className="grid md:grid-cols-[1.3fr_1fr] grid-cols-1">
+          <div className="grid grid-cols-1 md:grid-cols-[1.3fr_1fr] gap-4">
             {/* Top platos */}
             <Card padding={20}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 18, gap: 8, flexWrap: 'wrap' }}>
@@ -169,7 +169,7 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
             <p className="text-sm" style={{ color: T.textSoft }}>{menu.length} platos configurados</p>
             <Btn icon={Plus} onClick={() => setNewMenuItem(true)}>Nuevo plato</Btn>
           </div>
-          <div className="grid md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {menu.map(m => (
               <Card key={m.id} padding="p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -215,7 +215,7 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
                   onClick={() => {}}
                   style={{ cursor: 'pointer' }}>
                   <div onDoubleClick={() => setDetailSub(s)} className="flex items-start justify-between gap-4 flex-wrap">
-                    <div className="flex-1 min-w-[250px]">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h4 className="font-medium" style={{ color: T.text }}>{s.nombre}</h4>
                         <Tag color={s.activo ? 'green' : 'gray'}>{s.codigo}</Tag>

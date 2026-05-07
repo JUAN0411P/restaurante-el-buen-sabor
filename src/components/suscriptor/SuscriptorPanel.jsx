@@ -218,7 +218,7 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
       {/* RESUMEN: PLAN + PROFILE */}
       {tab === 'resumen' && (
         <>
-          <div style={{ display: 'grid', gap: 14 }} className="grid md:grid-cols-[1.6fr_1fr] grid-cols-1">
+          <div className="grid grid-cols-1 md:grid-cols-[1.6fr_1fr] gap-4">
             {/* Plan card */}
             <Card padding={22}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
@@ -238,7 +238,7 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
               </div>
 
               {/* Stat cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }} className="grid grid-cols-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <PlanStat
                   label="ALMUERZOS"
                   value={sub.almuerzos_restantes}
@@ -629,7 +629,7 @@ function ExtensionRequestModal({ open, onClose, sub, plan, subEvents, refresh })
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ padding: 12, borderRadius: 10, background: T.bg, border: `1px solid ${T.border}` }}>
           <KickerLabel>— resumen de tu cuenta</KickerLabel>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, fontSize: 11, marginTop: 6 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, fontSize: 11, marginTop: 6 }} className="grid grid-cols-1 sm:grid-cols-2">
             <div><span style={{ color: T.textMute }}>Plan:</span> <strong style={{ color: T.text }}>{plan?.nombre || '—'}</strong></div>
             <div><span style={{ color: T.textMute }}>Vence:</span> <strong style={{ color: T.text }}>{sub.fecha_vencimiento || '—'}</strong></div>
             <div><span style={{ color: T.textMute }}>Almuerzos rest.:</span> <strong style={{ color: T.text }}>{sub.almuerzos_restantes}</strong></div>
@@ -637,7 +637,7 @@ function ExtensionRequestModal({ open, onClose, sub, plan, subEvents, refresh })
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }} className="grid grid-cols-2">
           <div style={{ padding: 12, borderRadius: 10, background: T.mustardSoft, textAlign: 'center' }}>
             <div style={{ ...FontFraunces, fontSize: 28, color: T.mustard, fontStyle: 'italic' }}>{avisosCount}</div>
             <div style={{ fontSize: 10, color: T.textSoft, ...FontMono, letterSpacing: '.05em' }}>DÍAS AVISADOS</div>

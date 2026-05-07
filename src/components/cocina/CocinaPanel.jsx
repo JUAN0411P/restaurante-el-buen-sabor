@@ -45,11 +45,8 @@ export function CocinaPanel({ orders, mesas, refresh }) {
 
   return (
     <div>
-      {/* Stats pills */}
-      <div
-        style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 22 }}
-        className="grid sm:grid-cols-3 grid-cols-1"
-      >
+      {/* Stats pills — 1 columna en móvil, 3 en sm+ */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
         <StatPill label="SUSCRIPCIONES HOY" value={totalSuscHoy} bg={T.oliveSoft} fg={T.olive} />
         <StatPill label="MENÚ DEL DÍA HOY" value={totalMenuHoy} bg={T.mustardSoft} fg={T.mustard} />
         <StatPill
@@ -61,11 +58,8 @@ export function CocinaPanel({ orders, mesas, refresh }) {
         />
       </div>
 
-      {/* Two columns */}
-      <div
-        style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}
-        className="grid md:grid-cols-2 grid-cols-1"
-      >
+      {/* Dos columnas — se apilan en móvil, lado a lado en md+ */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <ColumnaCocina
           titulo="Mensualidad"
           dotColor={T.olive}

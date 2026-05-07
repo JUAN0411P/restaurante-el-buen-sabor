@@ -24,13 +24,11 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
   const subsPorVencer = suscriptores.filter(s => s.activo && s.plan_id && s.fecha_vencimiento && new Date(s.fecha_vencimiento) < new Date(Date.now() + 7 * 86400000));
 
   const procesarPago = async (order, metodo) => {
-    // Marcar la orden como pagada en Supabase
     await supabase
       .from('orders')
       .update({ pagado: true, metodo_pago: metodo, fecha_pago: new Date().toISOString() })
       .eq('id', order.id);
 
-    // Liberar mesa automáticamente: marcar comensal como retirado
     if (order.comensal_id) {
       await db.update('rest:comensales', order.comensal_id, { left_at: new Date().toISOString() });
     }
@@ -45,10 +43,10 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
 
   return (
     <div>
-      {/* Stats grid */}
-      <div style={{ display: 'grid', gap: 14, marginBottom: 24 }} className="grid-cols-2 md:grid-cols-4 grid">
+      {/* Stats grid — 2 cols en móvil, 4 en md+ */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <StatCard label="TOTAL HOY" value={formatMoney(totalDia)} tone={T.terracotta} />
-        <StatCard label="ÓRDENES COBRADAS" value={cobradas.length} tone={T.text} />
+        <StatCard label="COBRADAS" value={cobradas.length} tone={T.text} />
         <StatCard label="PENDIENTES" value={porCobrar.length} tone={T.mustard} />
         <StatCard label="SIN PLAN" value={subsSinPlan.length} tone={T.plum} />
       </div>
@@ -65,33 +63,35 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
           {porCobrar.length === 0 ? (
             <Card><EmptyState icon={CheckCircle2} title="No hay órdenes por cobrar" description="Todo al día 🎉" /></Card>
           ) : (
-            <div className="ebs-stagger" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="ebs-stagger flex flex-col gap-3">
               {porCobrar.map(o => {
                 const mesa = mesas.find(m => m.numero === o.mesa_numero);
                 const comensal = (mesa?.comensales || []).find(c => c.id === o.comensal_id);
                 return (
-                  <Card key={o.id} padding={18} hover>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+                  <Card key={o.id} padding={16} hover>
+                    {/* En móvil: apilado. En sm+: fila */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                       <div style={{ width: 48, height: 48, borderRadius: 12, background: T.mustardSoft, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                         <span style={{ ...FontFraunces, fontSize: 22, color: T.mustard }}>{o.mesa_numero}</span>
                       </div>
-                      <div style={{ flex: 1, minWidth: 200 }}>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>Mesa {o.mesa_numero}</span>
                           <Tag tone="mustard" size="xs">MENÚ DÍA</Tag>
                           {comensal && <span style={{ fontSize: 11, color: T.textSoft }}>· {comensal.nombre}</span>}
-                          <span style={{ fontSize: 11, color: T.textSoft, ...FontMono }}>· mesero {o.mesero_id}</span>
                         </div>
                         <div style={{ fontSize: 13, color: T.textSoft }}>
                           {(o.items || []).map(i => `${i.cantidad}× ${i.nombre}`).join(' · ')}
                         </div>
                       </div>
-                      <div style={{ ...FontFraunces, fontSize: 26, color: T.terracotta, fontStyle: 'italic' }}>
-                        {formatMoney(o.total)}
+                      <div className="flex sm:flex-col items-center sm:items-end gap-3 sm:gap-2">
+                        <div style={{ ...FontFraunces, fontSize: 24, color: T.terracotta, fontStyle: 'italic' }}>
+                          {formatMoney(o.total)}
+                        </div>
+                        <Btn variant="primary" size="md" onClick={() => setCobrar({ ...o, _comensal: comensal })}>
+                          Cobrar →
+                        </Btn>
                       </div>
-                      <Btn variant="primary" size="md" onClick={() => setCobrar({ ...o, _comensal: comensal })}>
-                        Cobrar →
-                      </Btn>
                     </div>
                   </Card>
                 );
@@ -113,17 +113,17 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
           {cobradas.length === 0 ? (
             <Card><EmptyState title="Aún no hay cobros hoy" /></Card>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="flex flex-col gap-2">
               {cobradas.map(o => (
                 <Card key={o.id} padding={14}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                  <div className="flex items-center gap-3 flex-wrap">
                     <div style={{ width: 36, height: 36, borderRadius: 10, background: o.tipo === 'suscripcion' ? T.oliveSoft : T.mustardSoft, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                       {o.tipo === 'plan'
                         ? <Wallet size={16} color={T.terracotta} />
                         : <span style={{ ...FontFraunces, fontSize: 14, color: o.tipo === 'suscripcion' ? T.olive : T.mustard }}>{o.mesa_numero}</span>}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2, flexWrap: 'wrap' }}>
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <Tag tone={o.tipo === 'suscripcion' ? 'olive' : o.tipo === 'plan' ? 'terra' : 'mustard'} size="xs">
                           {o.tipo === 'suscripcion' ? 'SUSC' : o.tipo === 'plan' ? 'PLAN' : 'MENÚ'}
                         </Tag>
@@ -160,15 +160,15 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
           {subsSinPlan.length === 0 ? (
             <Card><EmptyState icon={CheckCircle2} title="Todos los suscriptores tienen plan activo" /></Card>
           ) : (
-            <div className="ebs-stagger" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="ebs-stagger flex flex-col gap-3">
               {subsSinPlan.map(s => (
                 <Card key={s.id} padding={16} hover>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                     <div style={{ width: 44, height: 44, borderRadius: 12, background: T.plumSoft, color: T.plum, display: 'grid', placeItems: 'center', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
                       {s.nombre.split(' ').map(p => p[0]).slice(0, 2).join('')}
                     </div>
-                    <div style={{ flex: 1, minWidth: 200 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2, flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{s.nombre}</span>
                         <Tag tone="neutral" size="xs">{s.codigo}</Tag>
                       </div>
@@ -190,7 +190,7 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
       {/* MENSUALIDADES */}
       {tab === 'subs' && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 12, flexWrap: 'wrap' }}>
+          <div className="flex justify-between items-center mb-4 gap-3 flex-wrap">
             <div>
               <KickerLabel>— mensualidades activas</KickerLabel>
               <h3 style={{ ...FontFraunces, fontSize: 22, color: T.text, margin: 0 }}>
@@ -199,18 +199,18 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
             </div>
             <Btn icon={Plus} onClick={() => setNewSub(true)}>Registrar nuevo</Btn>
           </div>
-          <div style={{ display: 'grid', gap: 12 }} className="grid md:grid-cols-2 grid-cols-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {suscriptores.filter(s => s.plan_id).map(s => {
               const plan = planes.find(p => p.id === s.plan);
               const venceProto = s.fecha_vencimiento && new Date(s.fecha_vencimiento) < new Date(Date.now() + 7 * 86400000);
               return (
                 <Card key={s.id} padding={16}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                  <div className="flex items-start gap-3">
                     <div style={{ width: 38, height: 38, borderRadius: 10, background: T.oliveSoft, color: T.olive, display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>
                       {s.nombre.split(' ').map(p => p[0]).slice(0, 2).join('')}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{s.nombre}</span>
                         <Tag tone={venceProto ? 'mustard' : 'olive'} size="xs">{s.codigo}</Tag>
                       </div>
@@ -240,7 +240,7 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
             <div style={{ padding: 16, borderRadius: 12, marginBottom: 16, background: T.bg, border: `1px solid ${T.border}` }}>
               <KickerLabel>— detalle del pedido</KickerLabel>
               <p style={{ fontSize: 12, color: T.textSoft, margin: '0 0 8px 0', ...FontMono }}>
-                Mesa {cobrar.mesa_numero} {cobrar._comensal && `· ${cobrar._comensal.nombre}`} · mesero {cobrar.mesero_id}
+                Mesa {cobrar.mesa_numero} {cobrar._comensal && `· ${cobrar._comensal.nombre}`}
               </p>
               {cobrar.items.map((i, idx) => (
                 <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '4px 0' }}>
@@ -254,7 +254,7 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
               </div>
             </div>
 
-            {/* Monto recibido y cambio */}
+            {/* Monto recibido */}
             <div style={{ marginBottom: 16, padding: 14, borderRadius: 12, background: T.bgSoft, border: `1px solid ${T.border}` }}>
               <KickerLabel>— monto recibido</KickerLabel>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 8 }}>
@@ -305,7 +305,8 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
             </div>
 
             <KickerLabel>— método de pago</KickerLabel>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 8 }}>
+            {/* Botones de pago: 1 col en móvil muy pequeño, 3 en sm+ */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
               <Btn variant="ghost" icon={Banknote} onClick={() => procesarPago(cobrar, 'efectivo')}>Efectivo</Btn>
               <Btn variant="ghost" icon={CreditCard} onClick={() => procesarPago(cobrar, 'tarjeta')}>Tarjeta</Btn>
               <Btn variant="ghost" onClick={() => procesarPago(cobrar, 'transferencia')}>Transferencia</Btn>
@@ -329,12 +330,12 @@ export function CajaPanel({ activeTab, menu, planes, suscriptores, orders, mesas
 
 function StatCard({ label, value, tone, trend }) {
   return (
-    <Card padding={18}>
+    <Card padding={16}>
       <div style={{ fontSize: 10, color: T.textSoft, ...FontMono, fontWeight: 600, letterSpacing: '.1em' }}>
         {label}
       </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 8 }}>
-        <div style={{ ...FontFraunces, fontSize: 38, color: tone, lineHeight: 1 }}>{value}</div>
+        <div style={{ ...FontFraunces, fontSize: 32, color: tone, lineHeight: 1 }}>{value}</div>
         {trend && (
           <span style={{ ...FontMono, fontSize: 11, color: T.olive, padding: '2px 6px', background: T.oliveSoft, borderRadius: 5 }}>
             {trend}
