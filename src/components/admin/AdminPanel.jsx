@@ -14,6 +14,7 @@ import { Card, Tag, Btn, EmptyState, KickerLabel } from '../ui/primitives';
 import { UserFormModal, MenuItemFormModal, NewSubModal } from './AdminModals';
 import { PlanesTab } from './PlanesManager';
 import { SubscriberDetailModal } from './SubscriberDetailModal';
+import { HistorialDias } from './HistorialDias';
 
 export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesas, users, events, refresh }) {
   const tab = activeTab || 'dash';
@@ -29,6 +30,17 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
   const ventasMenu = ordersToday.filter(o => o.tipo === 'menu' && o.pagado).reduce((s, o) => s + o.total, 0);
   const ventasSubs = ordersToday.filter(o => o.tipo === 'suscripcion' && o.estado === 'entregado').length;
   const platosVendidos = ordersToday.filter(o => o.estado === 'entregado').reduce((s, o) => s + o.items.reduce((a, i) => a + i.cantidad, 0), 0);
+  // Top platos filtrado solo por hoy (no acumulado histórico)
+  const topPlatosHoy = (() => {
+    const counts = {};
+    ordersToday.filter(o => o.estado === 'entregado').forEach(o => {
+      (o.items || []).forEach(it => {
+        counts[it.id] = counts[it.id] || { nombre: it.nombre, precio: it.precio, vendidos: 0 };
+        counts[it.id].vendidos += it.cantidad;
+      });
+    });
+    return Object.values(counts).sort((a, b) => b.vendidos - a.vendidos).slice(0, 5);
+  })();
 
   const eliminarPlato = async (id) => {
     if (!confirm('¿Eliminar este plato?')) return;
@@ -101,14 +113,14 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
                 </div>
                 <Tag tone="neutral" size="xs">ACTUALIZADO {new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</Tag>
               </div>
-              {menu.filter(m => m.vendidos > 0).length === 0 ? (
+              {topPlatosHoy.length === 0 ? (
                 <EmptyState title="Aún no hay ventas hoy" />
               ) : (
-                menu.filter(m => m.vendidos > 0).sort((a, b) => b.vendidos - a.vendidos).slice(0, 5).map((p, i, arr) => {
+                topPlatosHoy.map((p, i, arr) => {
                   const max = arr[0].vendidos;
                   const pct = (p.vendidos / max) * 100;
                   return (
-                    <div key={p.id} style={{ padding: '10px 0', borderBottom: i < arr.length - 1 ? `1px solid ${T.borderSoft}` : 'none' }}>
+                    <div key={p.nombre} style={{ padding: '10px 0', borderBottom: i < arr.length - 1 ? `1px solid ${T.borderSoft}` : 'none' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6, gap: 8, flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
                           <span style={{ ...FontMono, fontSize: 11, color: T.textMute, width: 20 }}>0{i + 1}</span>
@@ -169,7 +181,7 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
             <p className="text-sm" style={{ color: T.textSoft }}>{menu.length} platos configurados</p>
             <Btn icon={Plus} onClick={() => setNewMenuItem(true)}>Nuevo plato</Btn>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid md:grid-cols-2 gap-3">
             {menu.map(m => (
               <Card key={m.id} padding="p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -215,7 +227,7 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
                   onClick={() => {}}
                   style={{ cursor: 'pointer' }}>
                   <div onDoubleClick={() => setDetailSub(s)} className="flex items-start justify-between gap-4 flex-wrap">
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-[250px]">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h4 className="font-medium" style={{ color: T.text }}>{s.nombre}</h4>
                         <Tag color={s.activo ? 'green' : 'gray'}>{s.codigo}</Tag>
@@ -261,6 +273,11 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
             refresh={refresh}
           />
         </div>
+      )}
+
+      {/* HISTORIAL POR DÍAS */}
+      {tab === 'historial' && (
+        <HistorialDias orders={orders} planes={planes} suscriptores={suscriptores} mesas={mesas} />
       )}
 
       {/* PLANS */}
