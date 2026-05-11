@@ -26,6 +26,7 @@ function useNavItems(roleType, counts) {
           { id: 'subs', label: 'Suscriptores', icon: Users, badge: counts.subsSinPlan },
           { id: 'planes', label: 'Planes', icon: Calendar },
           { id: 'users', label: 'Personal', icon: Shield },
+          { id: 'historial', label: 'Historial', icon: History },
         ];
       case 'caja':
         return [
