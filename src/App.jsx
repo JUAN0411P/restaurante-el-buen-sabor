@@ -12,6 +12,7 @@ import { NotificationsPanel } from './components/ui/NotificationsPanel';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { CajaPanel } from './components/caja/CajaPanel';
 import { MeseroPanel } from './components/mesero/MeseroPanel';
+import { ColorPickerPanel } from './components/mesero/MeseroPanel';
 import { CocinaPanel } from './components/cocina/CocinaPanel';
 import { SuscriptorPanel } from './components/suscriptor/SuscriptorPanel';
 
@@ -164,7 +165,10 @@ export default function App() {
         activeTab={activeTab}
         onChangeTab={setActiveTab}
         notificationsCount={unreadCount}
-        onOpenNotifications={relevantNotifs.length > 0 ? () => setShowNotifs(true) : null}>
+        onOpenNotifications={relevantNotifs.length > 0 ? () => setShowNotifs(true) : null}
+        sidebarExtra={role.type === 'mesero' ? (
+          <ColorPickerPanel user={role.data} users={store.users} refresh={store.refresh} />
+        ) : null}>
         {role.type === 'admin' && (
           <AdminPanel
             activeTab={activeTab}
@@ -197,6 +201,7 @@ export default function App() {
             mesas={store.mesas}
             suscriptores={store.suscriptores}
             orders={store.orders}
+            users={store.users}
             refresh={store.refresh}
           />
         )}

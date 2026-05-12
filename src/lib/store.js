@@ -62,6 +62,7 @@ export function useStore() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'comensales' },    () => refresh())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'mesas' },         () => refresh())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events' },        () => refresh())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' },         () => refresh())
       .subscribe();
 
     channelRef.current = channel;

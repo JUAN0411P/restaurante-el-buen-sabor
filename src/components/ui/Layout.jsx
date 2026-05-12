@@ -21,7 +21,7 @@ const ROLE_SUBTITLES = {
   suscriptor: 'Tu mensualidad',
 };
 
-export function Layout({ role, onLogout, navItems, activeTab, onChangeTab, notificationsCount = 0, onOpenNotifications, children }) {
+export function Layout({ role, onLogout, navItems, activeTab, onChangeTab, notificationsCount = 0, onOpenNotifications, sidebarExtra, children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const initials = (role.data?.nombre || ROLE_LABELS[role.type])
@@ -110,6 +110,9 @@ export function Layout({ role, onLogout, navItems, activeTab, onChangeTab, notif
           );
         })}
       </nav>
+
+      {/* Extra slot (ej: color picker para meseros) */}
+      {sidebarExtra && sidebarExtra}
 
       {/* User card */}
       <div style={{ padding: 12, borderTop: `1px solid ${T.borderSoft}` }}>
