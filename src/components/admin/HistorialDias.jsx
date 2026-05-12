@@ -3,7 +3,7 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   TrendingUp, UtensilsCrossed, Users, DollarSign,
   CreditCard, Banknote, ArrowLeftRight, Calendar,
-  Clock, CheckCircle2, X,
+  Clock, CheckCircle2, X, Filter,
 } from 'lucide-react';
 import { T, FontFraunces, FontMono } from '../../lib/tokens';
 import { formatMoney, formatDateTime } from '../../lib/utils';
@@ -57,6 +57,240 @@ function buildDaySummary(dayOrders) {
   return { total, totalMenu, totalPlanes, platos, suscAlm, pagadas: pagadas.length, porMetodo };
 }
 
+/* ─── Calendario para seleccionar rango de fechas ─────────────── */
+function DateRangeCalendar({ startDate, endDate, onStartChange, onEndChange, availableDates }) {
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [displayMonth, setDisplayMonth] = useState(new Date(startDate || new Date()));
+
+  const getDaysInMonth = (date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (date) => {
+    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  };
+
+  const availableDatesSet = new Set(availableDates);
+  const daysInMonth = getDaysInMonth(displayMonth);
+  const firstDay = getFirstDayOfMonth(displayMonth);
+  const days = [];
+
+  // Días vacíos al inicio
+  for (let i = 0; i < firstDay; i++) {
+    days.push(null);
+  }
+
+  // Días del mes
+  for (let i = 1; i <= daysInMonth; i++) {
+    const dateStr = `${displayMonth.getFullYear()}-${String(displayMonth.getMonth() + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+    days.push({
+      day: i,
+      dateStr,
+      available: availableDatesSet.has(dateStr),
+    });
+  }
+
+  const monthName = displayMonth.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' });
+  const isInRange = (dateStr) => {
+    if (!startDate || !endDate) return false;
+    return dateStr >= startDate && dateStr <= endDate;
+  };
+
+  const isStartDate = (dateStr) => dateStr === startDate;
+  const isEndDate = (dateStr) => endDate && dateStr === endDate;
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button
+        onClick={() => setShowCalendar(!showCalendar)}
+        style={{
+          width: '100%',
+          padding: '10px 14px',
+          borderRadius: 10,
+          background: T.bgSoft,
+          border: `1px solid ${T.border}`,
+          color: T.text,
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          fontSize: 13,
+        }}
+      >
+        <Calendar size={16} />
+        <span>
+          {startDate && endDate ? `${startDate} a ${endDate}` : 'Seleccionar rango de fechas'}
+        </span>
+      </button>
+
+      {showCalendar && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            marginTop: 8,
+            background: T.card,
+            border: `1px solid ${T.border}`,
+            borderRadius: 12,
+            padding: 16,
+            zIndex: 10,
+            boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+            width: 320,
+          }}
+        >
+          {/* Encabezado del mes */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <button
+              onClick={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() - 1))}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: T.bgSoft,
+                border: `1px solid ${T.border}`,
+                cursor: 'pointer',
+                display: 'grid',
+                placeItems: 'center',
+                color: T.text,
+              }}
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span style={{ ...FontFraunces, fontSize: 14, color: T.text, textTransform: 'capitalize' }}>
+              {monthName}
+            </span>
+            <button
+              onClick={() => setDisplayMonth(new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1))}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: T.bgSoft,
+                border: `1px solid ${T.border}`,
+                cursor: 'pointer',
+                display: 'grid',
+                placeItems: 'center',
+                color: T.text,
+              }}
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+
+          {/* Días de la semana */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4, marginBottom: 8 }}>
+            {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map(day => (
+              <div
+                key={day}
+                style={{
+                  textAlign: 'center',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: T.textMute,
+                  padding: 4,
+                }}
+              >
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* Días del mes */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+            {days.map((day, idx) => {
+              if (!day) {
+                return <div key={`empty-${idx}`} />;
+              }
+
+              const inRange = isInRange(day.dateStr);
+              const isStart = isStartDate(day.dateStr);
+              const isEnd = isEndDate(day.dateStr);
+              const isDisabled = !day.available;
+
+              return (
+                <button
+                  key={day.dateStr}
+                  onClick={() => {
+                    if (!endDate || day.dateStr < startDate) {
+                      onStartChange(day.dateStr);
+                      onEndChange(null);
+                    } else if (day.dateStr >= startDate) {
+                      onEndChange(day.dateStr);
+                    }
+                  }}
+                  disabled={isDisabled}
+                  style={{
+                    padding: 8,
+                    borderRadius: 6,
+                    background:
+                      isStart || isEnd ? T.olive :
+                      inRange ? T.oliveSoft :
+                      isDisabled ? T.bgSoft : T.card,
+                    border: `1px solid ${
+                      isStart || isEnd ? T.olive :
+                      inRange ? T.olive :
+                      isDisabled ? T.borderSoft : T.border
+                    }`,
+                    color:
+                      isStart || isEnd ? '#fff' :
+                      inRange ? T.olive :
+                      isDisabled ? T.textMute : T.text,
+                    cursor: isDisabled ? 'not-allowed' : 'pointer',
+                    fontSize: 12,
+                    fontWeight: isStart || isEnd ? 600 : 400,
+                    opacity: isDisabled ? 0.5 : 1,
+                  }}
+                >
+                  {day.day}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Botones de acción */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => {
+                setShowCalendar(false);
+                onStartChange(null);
+                onEndChange(null);
+              }}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 8,
+                background: T.bgSoft,
+                border: `1px solid ${T.border}`,
+                color: T.text,
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
+              Limpiar
+            </button>
+            <button
+              onClick={() => setShowCalendar(false)}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 8,
+                background: T.olive,
+                border: `1px solid ${T.olive}`,
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
+              Aplicar
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Componente principal ──────────────────────────────────── */
 export function HistorialDias({ orders, planes, suscriptores, mesas }) {
   // Agrupar órdenes por fecha
@@ -73,8 +307,36 @@ export function HistorialDias({ orders, planes, suscriptores, mesas }) {
       .map(([fecha, ords]) => ({ fecha, orders: ords, summary: buildDaySummary(ords) }));
   }, [orders]);
 
-  const [diaIdx, setDiaIdx] = useState(0); // índice en el array `dias`
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
   const [expandedOrder, setExpandedOrder] = useState(null);
+
+  // Obtener fechas disponibles
+  const availableDates = useMemo(() => dias.map(d => d.fecha), [dias]);
+
+  // Filtrar días según el rango seleccionado
+  const filteredDias = useMemo(() => {
+    if (!startDate) return dias;
+    const end = endDate || startDate;
+    return dias.filter(d => d.fecha >= startDate && d.fecha <= end);
+  }, [dias, startDate, endDate]);
+
+  // Estadísticas del rango
+  const rangeStats = useMemo(() => {
+    let totalIncome = 0;
+    let totalOrders = 0;
+    let totalDishes = 0;
+    let totalSubscriptions = 0;
+
+    filteredDias.forEach(d => {
+      totalIncome += d.summary.total;
+      totalOrders += d.summary.pagadas;
+      totalDishes += d.summary.platos;
+      totalSubscriptions += d.summary.suscAlm;
+    });
+
+    return { totalIncome, totalOrders, totalDishes, totalSubscriptions };
+  }, [filteredDias]);
 
   if (dias.length === 0) {
     return (
@@ -88,306 +350,228 @@ export function HistorialDias({ orders, planes, suscriptores, mesas }) {
     );
   }
 
-  const diaActual = dias[diaIdx] || dias[0];
-  const { fecha, orders: dayOrders, summary } = diaActual;
-  const hayAnterior = diaIdx < dias.length - 1;
-  const haySiguiente = diaIdx > 0;
-
-  // Separar por tipo para el detalle
-  const menuOrders     = dayOrders.filter(o => o.tipo === 'menu');
-  const suscOrders     = dayOrders.filter(o => o.tipo === 'suscripcion');
-  const planOrders     = dayOrders.filter(o => o.tipo === 'plan');
-  const cancelados     = dayOrders.filter(o => ['cancelado-timeout', 'rechazado'].includes(o.estado));
-
-  const todayISO = new Date().toISOString().slice(0, 10);
-  const esHoy = fecha === todayISO;
-
   return (
     <div className="space-y-5">
 
-      {/* ── Encabezado + navegación ── */}
+      {/* ── Encabezado ── */}
       <div>
         <KickerLabel>— registro histórico · {dias.length} {dias.length === 1 ? 'día' : 'días'} con actividad</KickerLabel>
         <h2 style={{ ...FontFraunces, fontSize: 26, color: T.text, margin: 0 }}>Historial por día</h2>
       </div>
 
-      {/* Selector de día */}
-      <div
-        style={{
-          display: 'flex', alignItems: 'center', gap: 12,
-          padding: '12px 16px',
-          borderRadius: 14,
-          background: T.card,
-          border: `1px solid ${T.border}`,
-          flexWrap: 'wrap',
-        }}
-      >
-        <button
-          onClick={() => setDiaIdx(i => i + 1)}
-          disabled={!hayAnterior}
-          style={{
-            width: 34, height: 34, borderRadius: 10,
-            background: hayAnterior ? T.bgSoft : 'transparent',
-            border: `1px solid ${hayAnterior ? T.border : 'transparent'}`,
-            color: hayAnterior ? T.text : T.textMute,
-            display: 'grid', placeItems: 'center',
-            cursor: hayAnterior ? 'pointer' : 'default',
-            flexShrink: 0,
-          }}
-        >
-          <ChevronLeft size={16} />
-        </button>
-
-        <div style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <span style={{ ...FontFraunces, fontSize: 20, color: T.text }}>
-              {formatDayLabel(fecha)}
-            </span>
-            {esHoy && (
-              <span style={{
-                fontSize: 10, ...FontMono, fontWeight: 700,
-                background: T.olive, color: '#fff',
-                padding: '2px 8px', borderRadius: 6, letterSpacing: '.08em',
-              }}>HOY</span>
-            )}
-          </div>
-          <div style={{ fontSize: 11, color: T.textMute, ...FontMono, marginTop: 2 }}>
-            día {diaIdx + 1} de {dias.length}
-          </div>
+      {/* ── Calendario y filtros ── */}
+      <Card padding={16}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+          <Filter size={16} color={T.text} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>Selecciona un rango de fechas</span>
         </div>
+        <DateRangeCalendar
+          startDate={startDate}
+          endDate={endDate}
+          onStartChange={setStartDate}
+          onEndChange={setEndDate}
+          availableDates={availableDates}
+        />
+      </Card>
 
-        <button
-          onClick={() => setDiaIdx(i => i - 1)}
-          disabled={!haySiguiente}
-          style={{
-            width: 34, height: 34, borderRadius: 10,
-            background: haySiguiente ? T.bgSoft : 'transparent',
-            border: `1px solid ${haySiguiente ? T.border : 'transparent'}`,
-            color: haySiguiente ? T.text : T.textMute,
-            display: 'grid', placeItems: 'center',
-            cursor: haySiguiente ? 'pointer' : 'default',
-            flexShrink: 0,
-          }}
-        >
-          <ChevronRight size={16} />
-        </button>
-      </div>
+      {/* ── Estadísticas del rango seleccionado ── */}
+      {(startDate || filteredDias.length > 0) && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Card padding={14}>
+            <div style={{ fontSize: 10, ...FontMono, color: T.textMute, letterSpacing: '.08em', marginBottom: 8, fontWeight: 600 }}>INGRESOS</div>
+            <div style={{ ...FontFraunces, fontSize: 24, color: T.terracotta, fontStyle: 'italic', margin: 0 }}>
+              {formatMoney(rangeStats.totalIncome)}
+            </div>
+            <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4 }}>
+              {filteredDias.length} {filteredDias.length === 1 ? 'día' : 'días'}
+            </div>
+          </Card>
+          <Card padding={14}>
+            <div style={{ fontSize: 10, ...FontMono, color: T.textMute, letterSpacing: '.08em', marginBottom: 8, fontWeight: 600 }}>ÓRDENES</div>
+            <div style={{ ...FontFraunces, fontSize: 24, color: T.mustard, fontStyle: 'italic', margin: 0 }}>
+              {rangeStats.totalOrders}
+            </div>
+            <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4 }}>
+              pagadas
+            </div>
+          </Card>
+          <Card padding={14}>
+            <div style={{ fontSize: 10, ...FontMono, color: T.textMute, letterSpacing: '.08em', marginBottom: 8, fontWeight: 600 }}>PLATOS</div>
+            <div style={{ ...FontFraunces, fontSize: 24, color: T.olive, fontStyle: 'italic', margin: 0 }}>
+              {rangeStats.totalDishes}
+            </div>
+            <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4 }}>
+              entregados
+            </div>
+          </Card>
+          <Card padding={14}>
+            <div style={{ fontSize: 10, ...FontMono, color: T.textMute, letterSpacing: '.08em', marginBottom: 8, fontWeight: 600 }}>SUSCRIPCIONES</div>
+            <div style={{ ...FontFraunces, fontSize: 24, color: T.plum, fontStyle: 'italic', margin: 0 }}>
+              {rangeStats.totalSubscriptions}
+            </div>
+            <div style={{ fontSize: 11, color: T.textSoft, marginTop: 4 }}>
+              almuerzos
+            </div>
+          </Card>
+        </div>
+      )}
 
-      {/* Acceso rápido a otros días */}
-      {dias.length > 1 && (
-        <div
-          style={{
-            display: 'flex', gap: 6, flexWrap: 'wrap',
-          }}
-        >
-          {dias.map((d, i) => (
-            <button
-              key={d.fecha}
-              onClick={() => setDiaIdx(i)}
-              style={{
-                padding: '5px 10px', borderRadius: 8, fontSize: 12,
-                background: i === diaIdx ? T.olive : T.bgSoft,
-                color: i === diaIdx ? '#fff' : T.textSoft,
-                border: `1px solid ${i === diaIdx ? T.olive : T.border}`,
-                cursor: 'pointer',
-                fontWeight: i === diaIdx ? 600 : 400,
-                ...FontMono,
-                transition: 'all .15s',
-              }}
-            >
-              {formatDayShort(d.fecha)}
-            </button>
+      {/* ── Listado de días filtrados ── */}
+      {filteredDias.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={Calendar}
+            title="Sin registros en este rango"
+            description="Selecciona otro rango de fechas o verifica disponibilidad."
+          />
+        </Card>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {filteredDias.map(diaData => (
+            <DayCard
+              key={diaData.fecha}
+              diaData={diaData}
+              expandedOrder={expandedOrder}
+              setExpandedOrder={setExpandedOrder}
+              mesas={mesas}
+              suscriptores={suscriptores}
+            />
           ))}
         </div>
-      )}
-
-      {/* ── Stat cards del día ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <DayStat label="INGRESOS TOTALES" value={formatMoney(summary.total)} color={T.terracotta} />
-        <DayStat label="MENÚ DEL DÍA" value={formatMoney(summary.totalMenu)} color={T.mustard} />
-        <DayStat label="ALMUERZOS SUSC." value={summary.suscAlm} color={T.olive} />
-        <DayStat label="PLATOS SERVIDOS" value={summary.platos} color={T.text} />
-      </div>
-
-      {/* Métodos de pago */}
-      {Object.keys(summary.porMetodo).length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {Object.entries(summary.porMetodo).map(([metodo, monto]) => {
-            const Icon = METODO_ICONS[metodo] || DollarSign;
-            return (
-              <div
-                key={metodo}
-                style={{
-                  padding: '12px 16px',
-                  borderRadius: 12,
-                  background: T.card,
-                  border: `1px solid ${T.border}`,
-                  display: 'flex', alignItems: 'center', gap: 12,
-                }}
-              >
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10,
-                  background: T.bgSoft,
-                  display: 'grid', placeItems: 'center',
-                  flexShrink: 0,
-                }}>
-                  <Icon size={16} color={T.olive} />
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 10, ...FontMono, color: T.textSoft, letterSpacing: '.08em', fontWeight: 600 }}>
-                    {METODO_LABELS[metodo] || metodo.toUpperCase()}
-                  </div>
-                  <div style={{ ...FontFraunces, fontSize: 20, color: T.text, fontStyle: 'italic' }}>
-                    {formatMoney(monto)}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── Detalle órdenes: Menú del día ── */}
-      <SeccionOrdenes
-        titulo="Menú del día"
-        dot={T.mustard}
-        orders={menuOrders}
-        expandedOrder={expandedOrder}
-        onToggle={setExpandedOrder}
-        emptyMsg="Sin órdenes de menú este día"
-        mesas={mesas}
-      />
-
-      {/* ── Detalle órdenes: Suscripciones ── */}
-      <SeccionOrdenes
-        titulo="Mensualidades (almuerzos)"
-        dot={T.olive}
-        orders={suscOrders}
-        expandedOrder={expandedOrder}
-        onToggle={setExpandedOrder}
-        emptyMsg="Sin almuerzos de suscripción este día"
-        mesas={mesas}
-        suscriptores={suscriptores}
-      />
-
-      {/* ── Planes cobrados ── */}
-      {planOrders.length > 0 && (
-        <SeccionOrdenes
-          titulo="Planes cobrados en caja"
-          dot={T.plum}
-          orders={planOrders}
-          expandedOrder={expandedOrder}
-          onToggle={setExpandedOrder}
-          emptyMsg=""
-          mesas={mesas}
-          suscriptores={suscriptores}
-        />
-      )}
-
-      {/* ── Cancelados / rechazados ── */}
-      {cancelados.length > 0 && (
-        <SeccionOrdenes
-          titulo={`Cancelados / rechazados (${cancelados.length})`}
-          dot={T.red}
-          orders={cancelados}
-          expandedOrder={expandedOrder}
-          onToggle={setExpandedOrder}
-          emptyMsg=""
-          mesas={mesas}
-          suscriptores={suscriptores}
-          muted
-        />
       )}
     </div>
   );
 }
 
-/* ─── Stat card pequeño ────────────────────────────────────── */
-function DayStat({ label, value, color }) {
+/* ─── Tarjeta de un día ─────────────────────────────────────── */
+function DayCard({ diaData, expandedOrder, setExpandedOrder, mesas, suscriptores }) {
+  const { fecha, orders: dayOrders, summary } = diaData;
+  const [collapsed, setCollapsed] = useState(false);
+
+  const menuOrders = dayOrders.filter(o => o.tipo === 'menu');
+  const suscOrders = dayOrders.filter(o => o.tipo === 'suscripcion');
+  const planOrders = dayOrders.filter(o => o.tipo === 'plan');
+
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const esHoy = fecha === todayISO;
+
   return (
-    <Card padding={16}>
-      <div style={{ fontSize: 10, ...FontMono, color: T.textSoft, letterSpacing: '.1em', fontWeight: 600, marginBottom: 8 }}>
-        {label}
-      </div>
-      <div style={{ ...FontFraunces, fontSize: 32, color, lineHeight: 1, fontStyle: 'italic' }}>
-        {value}
-      </div>
+    <Card>
+      {/* Encabezado del día */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        style={{
+          width: '100%',
+          padding: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          borderBottom: collapsed ? 'none' : `1px solid ${T.border}`,
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+            <span style={{ ...FontFraunces, fontSize: 16, color: T.text, fontWeight: 600 }}>
+              {formatDayLabel(fecha)}
+            </span>
+            {esHoy && (
+              <span style={{
+                fontSize: 9, ...FontMono, fontWeight: 700,
+                background: T.olive, color: '#fff',
+                padding: '2px 8px', borderRadius: 6, letterSpacing: '.08em',
+              }}>HOY</span>
+            )}
+          </div>
+          <div style={{ fontSize: 12, color: T.textSoft, ...FontMono }}>
+            {summary.pagadas} órdenes · {summary.platos} platos · {formatMoney(summary.total)}
+          </div>
+        </div>
+        {collapsed ? <ChevronDown size={16} color={T.textMute} /> : <ChevronUp size={16} color={T.textMute} />}
+      </button>
+
+      {!collapsed && (
+        <div style={{ padding: '0 16px 16px 16px' }}>
+          {/* Secciones de órdenes */}
+          <OrderSection
+            title="Menú del día"
+            orders={menuOrders}
+            emptyMsg="Sin órdenes de menú"
+            expanded={expandedOrder}
+            onToggle={(id) => setExpandedOrder(expandedOrder === id ? null : id)}
+            mesas={mesas}
+            suscriptores={suscriptores}
+            muted={false}
+            tone="mustard"
+          />
+          <OrderSection
+            title="Suscripciones"
+            orders={suscOrders}
+            emptyMsg="Sin órdenes de suscripción"
+            expanded={expandedOrder}
+            onToggle={(id) => setExpandedOrder(expandedOrder === id ? null : id)}
+            mesas={mesas}
+            suscriptores={suscriptores}
+            muted={false}
+            tone="olive"
+          />
+          <OrderSection
+            title="Planes catering"
+            orders={planOrders}
+            emptyMsg="Sin órdenes de plan"
+            expanded={expandedOrder}
+            onToggle={(id) => setExpandedOrder(expandedOrder === id ? null : id)}
+            mesas={mesas}
+            suscriptores={suscriptores}
+            muted={false}
+            tone="plum"
+          />
+        </div>
+      )}
     </Card>
   );
 }
 
-/* ─── Sección colapsable de órdenes ───────────────────────── */
-function SeccionOrdenes({ titulo, dot, orders: list, expandedOrder, onToggle, emptyMsg, mesas, suscriptores, muted }) {
+/* ─── Sección de órdenes agrupadas ──────────────────────────── */
+function OrderSection({ title, orders, emptyMsg, expanded, onToggle, mesas, suscriptores, muted, tone }) {
   const [collapsed, setCollapsed] = useState(false);
 
-  if (list.length === 0 && !emptyMsg) return null;
-
-  const totalSeccion = list.filter(o => o.pagado).reduce((s, o) => s + (o.total || 0), 0);
-
   return (
-    <div>
-      {/* Header sección */}
+    <div style={{ marginBottom: 16 }}>
       <button
-        onClick={() => setCollapsed(c => !c)}
+        onClick={() => setCollapsed(!collapsed)}
         style={{
-          width: '100%',
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '10px 14px',
-          borderRadius: collapsed ? 12 : '12px 12px 0 0',
-          background: T.card,
-          border: `1px solid ${T.border}`,
-          borderBottom: collapsed ? `1px solid ${T.border}` : `1px solid ${T.borderSoft}`,
-          cursor: 'pointer',
-          marginBottom: 0,
-          textAlign: 'left',
+          width: '100%', padding: '12px', borderRadius: 10, background: T.bgSoft, border: 'none',
+          cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', marginBottom: 8,
         }}
       >
-        <div style={{ width: 10, height: 10, borderRadius: 5, background: muted ? T.textMute : dot, flexShrink: 0 }} />
-        <span style={{ ...FontFraunces, fontSize: 17, color: muted ? T.textSoft : T.text, flex: 1 }}>
-          {titulo}
+        <span style={{ fontSize: 12, fontWeight: 600, color: T.text }}>
+          {title} ({orders.length})
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {totalSeccion > 0 && (
-            <span style={{ ...FontFraunces, fontSize: 16, color: T.terracotta, fontStyle: 'italic' }}>
-              {formatMoney(totalSeccion)}
-            </span>
-          )}
-          <span style={{
-            fontSize: 11, ...FontMono, fontWeight: 600,
-            padding: '2px 8px', borderRadius: 6,
-            background: muted ? T.bgSoft : T.bgSoft,
-            color: muted ? T.textMute : T.textSoft,
-          }}>
-            {list.length}
-          </span>
-          {collapsed ? <ChevronDown size={14} color={T.textMute} /> : <ChevronUp size={14} color={T.textMute} />}
-        </div>
+        {collapsed ? <ChevronDown size={14} color={T.textMute} /> : <ChevronUp size={14} color={T.textMute} />}
       </button>
 
       {!collapsed && (
-        <div
-          style={{
-            border: `1px solid ${T.border}`,
-            borderTop: 'none',
-            borderRadius: '0 0 12px 12px',
-            overflow: 'hidden',
-          }}
-        >
-          {list.length === 0 ? (
-            <div style={{ padding: 20, background: T.card }}>
-              <EmptyState title={emptyMsg} />
+        <div style={{ borderRadius: '0 0 12px 12px', overflow: 'hidden' }}>
+          {orders.length === 0 ? (
+            <div style={{ padding: 16, background: T.card, textAlign: 'center' }}>
+              <div style={{ fontSize: 12, color: T.textMute }}>{emptyMsg}</div>
             </div>
           ) : (
-            list
+            orders
               .sort((a, b) => new Date(b.fecha) - new Date(a.fecha))
               .map((o, idx) => (
                 <OrdenFila
                   key={o.id}
                   orden={o}
                   idx={idx}
-                  totalRows={list.length}
-                  expanded={expandedOrder === o.id}
-                  onToggle={() => onToggle(expandedOrder === o.id ? null : o.id)}
+                  totalRows={orders.length}
+                  expanded={expanded === o.id}
+                  onToggle={() => onToggle(expanded === o.id ? null : o.id)}
                   mesas={mesas}
                   suscriptores={suscriptores}
                   muted={muted}
@@ -403,7 +587,11 @@ function SeccionOrdenes({ titulo, dot, orders: list, expandedOrder, onToggle, em
 /* ─── Fila de orden expandible ─────────────────────────────── */
 function OrdenFila({ orden, idx, totalRows, expanded, onToggle, mesas, suscriptores, muted }) {
   const mesa = mesas?.find(m => m.numero === orden.mesa_numero);
-  const sub  = suscriptores?.find(s => s.id === orden.suscriptor_id);
+  const sub = suscriptores?.find(s => s.id === orden.suscriptor_id);
+  
+  // Buscar el mesero por ID
+  const mesero = suscriptores?.find(s => s.id === orden.mesero_id);
+  const meseroName = mesero?.nombre || orden.mesero_id || 'N/A';
 
   const estadoColor = {
     'entregado': T.olive,
@@ -478,7 +666,7 @@ function OrdenFila({ orden, idx, totalRows, expanded, onToggle, mesas, suscripto
             </span>
           </div>
           <div style={{ fontSize: 11, color: T.textMute, ...FontMono }}>
-            {formatDateTime(orden.fecha)}
+            {formatDateTime(orden.fecha)} · Mesero: {meseroName}
             {orden.metodo_pago && ` · ${METODO_LABELS[orden.metodo_pago] || orden.metodo_pago}`}
           </div>
         </div>
@@ -531,7 +719,10 @@ function OrdenFila({ orden, idx, totalRows, expanded, onToggle, mesas, suscripto
             {/* Meta-datos */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px', fontSize: 11, color: T.textSoft }}>
               {orden.mesero_id && (
-                <div><span style={{ color: T.textMute }}>Mesero ID:</span> {orden.mesero_id}</div>
+                <div><span style={{ color: T.textMute }}>Mesero:</span> {meseroName}</div>
+              )}
+              {orden.mesa_numero && (
+                <div><span style={{ color: T.textMute }}>Mesa:</span> {orden.mesa_numero}</div>
               )}
               {orden.metodo_pago && (
                 <div><span style={{ color: T.textMute }}>Pago:</span> {METODO_LABELS[orden.metodo_pago] || orden.metodo_pago}</div>

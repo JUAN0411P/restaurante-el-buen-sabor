@@ -174,140 +174,172 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
     );
   }
 
+  // Con plan activo
   return (
     <div className="space-y-5">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <KickerLabel>— tu mensualidad · cuenta {sub.codigo}</KickerLabel>
-          <h2 style={{ ...FontFraunces, fontSize: 30, color: T.text, margin: 0, letterSpacing: '-0.015em' }}>
-            Hola, {sub.nombre.split(' ')[0]}
-          </h2>
-        </div>
-        <Btn variant="ghost" size="sm" icon={Edit3} onClick={() => setEditProfile(true)}>Editar perfil</Btn>
+
+      {/* ── Bienvenida ── */}
+      <div>
+        <KickerLabel>— cuenta {sub.codigo}</KickerLabel>
+        <h2 style={{ ...FontFraunces, fontSize: 30, color: T.text, margin: 0, letterSpacing: '-0.015em' }}>
+          Hola, {sub.nombre.split(' ')[0]} 👋
+        </h2>
       </div>
 
-      {/* HERO ALERT — pedidos pendientes (estilo mockup: flotante, shimmer, countdown) */}
+      {/* ── Pedidos por aprobar ── */}
       {pendientesAprobacion.length > 0 && (
-        <div className="space-y-3">
-          {pendientesAprobacion.map(o => (
-            <PedidoHeroCard
-              key={o.id}
-              orden={o}
-              onAprobar={aprobarPedido}
-              onRechazar={rechazarPedido}
-            />
-          ))}
-        </div>
+        <PedidoHeroCard
+          orden={pendientesAprobacion[0]}
+          onAprobar={aprobarPedido}
+          onRechazar={rechazarPedido}
+        />
       )}
 
-      {/* Info invitados */}
-      {tab === 'resumen' && sub.permitir_invitados && (
-        <div style={{ padding: 14, borderRadius: 12, background: T.plumSoft, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-          <Crown size={18} color={T.plum} style={{ flexShrink: 0, marginTop: 2 }} />
-          <div>
-            <div style={{ ...FontFraunces, fontSize: 15, color: T.text, marginBottom: 2 }}>
-              Puedes invitar a otras personas
-            </div>
-            <p style={{ fontSize: 12, color: T.textSoft, margin: 0 }}>
-              Cada invitado consume 1 almuerzo de tu plan y tú apruebas el pedido.
-            </p>
-          </div>
-        </div>
-      )}
+      {/* ── Navegación tabs ── */}
+      <div style={{ display: 'flex', gap: 6, borderBottom: `1px solid ${T.border}`, overflow: 'auto' }} className="scrollbar-hide">
+        {[
+          { id: 'resumen', label: 'Resumen', icon: <Crown size={14} /> },
+          { id: 'menu', label: 'Menú de hoy', icon: <UtensilsCrossed size={14} /> },
+          { id: 'calendar', label: 'Calendario', icon: <Calendar size={14} /> },
+          { id: 'historial', label: 'Historial', icon: <Clock size={14} /> },
+        ].map(t => (
+          <button
+            key={t.id}
+            onClick={() => refresh && refresh()} // trigger parent navigation
+            style={{
+              padding: '12px 16px', borderBottom: tab === t.id ? `2px solid ${T.olive}` : 'none',
+              background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+              color: tab === t.id ? T.olive : T.textSoft, fontSize: 12, fontWeight: tab === t.id ? 600 : 400,
+              whiteSpace: 'nowrap', transition: 'color .15s',
+            }}
+            data-tab={t.id}
+          >
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
 
-      {/* RESUMEN: PLAN + PROFILE */}
+      {/* RESUMEN */}
       {tab === 'resumen' && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-[1.6fr_1fr] gap-4">
-            {/* Plan card */}
-            <Card padding={22}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
-                <div>
-                  <KickerLabel>— tu plan activo</KickerLabel>
-                  <div style={{ ...FontFraunces, fontSize: 24, color: T.text, marginTop: 4 }}>{plan.nombre}</div>
-                  <div style={{ fontSize: 12, color: T.textSoft, marginTop: 4 }}>
-                    {plan.almuerzos} almuerzos · {plan.dias} días · vence {sub.fecha_vencimiento}
-                  </div>
+          {/* Stats del plan */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <PlanStat
+              label="DÍAS RESTANTES"
+              value={diasRestantes}
+              total={plan.dias}
+              pct={(diasRestantes / plan.dias) * 100}
+              bg={T.oliveSoft}
+              fg={T.olive}
+            />
+            <PlanStat
+              label="ALMUERZOS RESTANTES"
+              value={sub.almuerzos_restantes}
+              total={plan.almuerzos}
+              pct={(sub.almuerzos_restantes / plan.almuerzos) * 100}
+              bg={T.mustardSoft}
+              fg={T.mustard}
+            />
+            <PlanStat
+              label="MENSUALIDAD"
+              value={formatMoney(plan.precio)}
+              total=""
+              pct={100}
+              bg={T.plumSoft}
+              fg={T.plum}
+            />
+            <PlanStat
+              label="ESTADO"
+              value={diasRestantes > 0 ? 'ACTIVO' : 'VENCIDO'}
+              total=""
+              pct={diasRestantes > 0 ? 100 : 0}
+              bg={diasRestantes > 0 ? T.oliveSoft : T.redSoft}
+              fg={diasRestantes > 0 ? T.olive : T.red}
+            />
+          </div>
+
+          {/* Acciones rápidas */}
+          <div style={{ display: 'grid', gap: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+            <Btn
+              variant="outlined"
+              onClick={() => setShowAvisoInasistencia(true)}
+              icon={<Bell size={14} />}
+            >
+              Avisar inasistencia
+            </Btn>
+            <Btn
+              variant="outlined"
+              onClick={() => setShowExtension(true)}
+              icon={<Check size={14} />}
+            >
+              Solicitar extensión
+            </Btn>
+            <Btn
+              variant="outlined"
+              onClick={() => setEditProfile(true)}
+              icon={<Edit3 size={14} />}
+            >
+              Mi perfil
+            </Btn>
+          </div>
+
+          {/* Datos de la cuenta */}
+          <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+            <Card padding={14}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 50, height: 50, borderRadius: 8, background: T.bgSoft, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <User size={24} color={T.text} />
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ ...FontFraunces, fontSize: 26, fontStyle: 'italic', color: T.terracotta }}>
-                    {formatMoney(plan.precio)}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10, color: T.textSoft, ...FontMono, letterSpacing: '.1em' }}>
+                    TITULAR
                   </div>
-                  <div style={{ fontSize: 11, color: T.textSoft, ...FontMono }}>/MES</div>
+                  <div style={{ ...FontFraunces, fontSize: 14, color: T.text, margin: 0 }}>
+                    {sub.nombre}
+                  </div>
+                  <div style={{ fontSize: 10, color: T.textMute, ...FontMono, marginTop: 2 }}>
+                    CC {sub.cedula}
+                  </div>
                 </div>
               </div>
 
-              {/* Stat cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <PlanStat
-                  label="ALMUERZOS"
-                  value={sub.almuerzos_restantes}
-                  total={plan.almuerzos}
-                  bg={T.oliveSoft}
-                  fg={T.olive}
-                  pct={(sub.almuerzos_restantes / plan.almuerzos) * 100}
-                />
-                <div style={{ padding: 14, background: T.mustardSoft, borderRadius: 12 }}>
-                  <div style={{ fontSize: 10, color: T.mustard, ...FontMono, letterSpacing: '.1em', fontWeight: 600 }}>
-                    DÍAS
+              <div style={{ padding: 12, background: T.bg, borderRadius: 12, display: 'flex', gap: 12, alignItems: 'center', marginTop: 12 }}>
+                <div style={{ width: 50, height: 50, borderRadius: 8, background: T.text, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <QrCode size={28} color={T.bg} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10, color: T.textSoft, ...FontMono, letterSpacing: '.1em' }}>
+                    TU CÓDIGO
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 4 }}>
-                    <span style={{ ...FontFraunces, fontSize: 36, color: T.mustard, lineHeight: 1, fontStyle: 'italic' }}>
-                      {diasRestantes}
-                    </span>
-                    <span style={{ fontSize: 12, color: T.mustard, opacity: .7 }}>restantes</span>
+                  <div style={{ ...FontFraunces, fontSize: 20, color: T.text, fontStyle: 'italic', lineHeight: 1.1 }}>
+                    {sub.codigo}
                   </div>
-                  <div style={{ fontSize: 10, color: T.textSoft, marginTop: 10, ...FontMono }}>
-                    VENCE {sub.fecha_vencimiento}
+                  <div style={{ fontSize: 10, color: T.textMute, marginTop: 2 }}>
+                    muestra en caja al entrar
                   </div>
                 </div>
-                <div style={{ padding: 14, background: T.plumSoft, borderRadius: 12 }}>
-                  <div style={{ fontSize: 10, color: T.plum, ...FontMono, letterSpacing: '.1em', fontWeight: 600 }}>
-                    COMPENSADOS
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginTop: 4 }}>
-                    <span style={{ ...FontFraunces, fontSize: 36, color: T.plum, lineHeight: 1, fontStyle: 'italic' }}>
-                      +{sub.dias_extra_compensados || 0}
-                    </span>
-                    <span style={{ fontSize: 12, color: T.plum, opacity: .7 }}>días</span>
-                  </div>
-                  <div style={{ fontSize: 10, color: T.textSoft, marginTop: 10, ...FontMono }}>
-                    {(sub.dias_extra_compensados || 0) >= MAX_DIAS_COMPENSADOS_AUTO ? 'MÁXIMO ALCANZADO' : `${MAX_DIAS_COMPENSADOS_AUTO - (sub.dias_extra_compensados || 0)} DISPONIBLES`}
-                  </div>
-                </div>
-              </div>
-
-              {/* Acciones */}
-              <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-                <Btn size="sm" variant="ghost" icon={Clock} onClick={() => setShowAvisoInasistencia(true)}>
-                  Avisar inasistencia
-                </Btn>
-                <Btn size="sm" variant="ghost" icon={Calendar} onClick={() => setShowExtension(true)}>
-                  Solicitar extensión
-                </Btn>
               </div>
             </Card>
 
-            {/* Profile + QR */}
-            <Card padding={22}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-                <div style={{ width: 56, height: 56, borderRadius: 14, background: T.terraSoft, color: T.terracotta, display: 'grid', placeItems: 'center', ...FontFraunces, fontSize: 22, fontStyle: 'italic', flexShrink: 0 }}>
-                  {sub.nombre.split(' ').map(p => p[0]).slice(0, 2).join('')}
+            <Card padding={14}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 50, height: 50, borderRadius: 8, background: T.bgSoft, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <Mail size={24} color={T.text} />
                 </div>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ ...FontFraunces, fontSize: 17, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {sub.nombre}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 10, color: T.textSoft, ...FontMono, letterSpacing: '.1em' }}>
+                    CONTACTO
                   </div>
-                  <div style={{ fontSize: 11, color: T.textSoft, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: 11, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {sub.email}
                   </div>
                   <div style={{ fontSize: 10, color: T.textMute, ...FontMono, marginTop: 2 }}>
-                    CC {sub.cedula} · 📱 {sub.telefono}
+                    📱 {sub.telefono}
                   </div>
                 </div>
               </div>
 
-              <div style={{ padding: 12, background: T.bg, borderRadius: 12, display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div style={{ padding: 12, background: T.bg, borderRadius: 12, display: 'flex', gap: 12, alignItems: 'center', marginTop: 12 }}>
                 <div style={{ width: 50, height: 50, borderRadius: 8, background: T.text, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
                   <QrCode size={28} color={T.bg} />
                 </div>
@@ -365,7 +397,7 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
         </Card>
       )}
 
-      {/* HISTORIAL */}
+      {/* HISTORIAL - Con formato mejorado mostrando asistencia */}
       {tab === 'historial' && (
         <div>
           <KickerLabel>— últimas comidas</KickerLabel>
@@ -376,28 +408,68 @@ export function SuscriptorPanel({ activeTab, user, menu, planes, suscriptores, o
             <Card><EmptyState title="Aún no has consumido almuerzos" /></Card>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {consumosMes.slice(-15).reverse().map(o => (
-                <Card key={o.id} padding={14}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>
-                          {o.items.map(i => i.nombre).join(', ')}
-                        </span>
-                        {o.esInvitado && <Tag tone="plum" size="xs"><Heart size={9} /> INVITADO</Tag>}
+              {consumosMes.slice(-15).reverse().map((o, idx) => {
+                // Calcular estadísticas de asistencia hasta este día
+                const diasHastaAhora = consumosMes.slice(-15).reverse().slice(0, idx + 1).length;
+                const totalSuscriptoresActivos = suscriptores?.filter(s => 
+                  s.plan_id === sub.plan_id && 
+                  new Date(s.fecha_inicio) <= new Date(o.fecha) &&
+                  (new Date(s.fecha_vencimiento) >= new Date(o.fecha) || !s.fecha_vencimiento)
+                ).length || sub.plan_id ? 1 : 0;
+                
+                return (
+                  <Card key={o.id} padding={14}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 13, fontWeight: 500, color: T.text }}>
+                            {o.items.map(i => i.nombre).join(', ')}
+                          </span>
+                          {o.esInvitado && <Tag tone="plum" size="xs"><Heart size={9} /> INVITADO</Tag>}
+                        </div>
+                        <p style={{ fontSize: 11, color: T.textSoft, margin: 0, ...FontMono }}>
+                          Mesa {o.mesa} · {formatDateTime(o.fecha)}
+                        </p>
                       </div>
-                      <p style={{ fontSize: 11, color: T.textSoft, margin: 0, ...FontMono }}>
-                        Mesa {o.mesa} · {formatDateTime(o.fecha)}
-                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                        {/* Mostrar formato "30/40" para mensualidades */}
+                        <div style={{
+                          textAlign: 'center',
+                          padding: '6px 12px',
+                          borderRadius: 8,
+                          background: T.oliveSoft,
+                          border: `1px solid ${T.olive}`,
+                        }}>
+                          <div style={{
+                            ...FontFraunces,
+                            fontSize: 16,
+                            fontWeight: 600,
+                            color: T.olive,
+                            lineHeight: 1.1,
+                          }}>
+                            {diasHastaAhora}/{totalSuscriptoresActivos}
+                          </div>
+                          <div style={{
+                            fontSize: 9,
+                            ...FontMono,
+                            color: T.olive,
+                            fontWeight: 600,
+                            marginTop: 2,
+                            opacity: 0.7,
+                          }}>
+                            asistieron
+                          </div>
+                        </div>
+                        <Tag tone={
+                          o.estado === 'entregado' ? 'olive' :
+                          o.estado === 'rechazado' || o.estado === 'cancelado-timeout' ? 'red' :
+                          'mustard'
+                        } size="xs">{o.estado.toUpperCase()}</Tag>
+                      </div>
                     </div>
-                    <Tag tone={
-                      o.estado === 'entregado' ? 'olive' :
-                      o.estado === 'rechazado' || o.estado === 'cancelado-timeout' ? 'red' :
-                      'mustard'
-                    } size="xs">{o.estado.toUpperCase()}</Tag>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
@@ -498,64 +570,59 @@ function PedidoHeroCard({ orden, onAprobar, onRechazar }) {
         {orden.es_invitado && <Tag tone="plum" size="xs"><Heart size={9} /> INVITADO</Tag>}
       </div>
 
-      {/* Descripción del pedido */}
-      <div style={{ position: 'relative', marginBottom: 14 }}>
-        <div style={{ ...FontFraunces, fontSize: 20, color: T.text, marginBottom: 3 }}>
-          Mesa {orden.mesa_numero} · {(orden.items || []).map(i => i.nombre).join(', ')}
+      {/* Resumen del pedido */}
+      <div style={{ marginBottom: 20, position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 6 }}>
+          <span style={{ ...FontFraunces, fontSize: 32, color: T.text, lineHeight: 1, fontStyle: 'italic' }}>
+            {orden.items?.length || 0} {orden.items?.length === 1 ? 'plato' : 'platos'}
+          </span>
         </div>
-        <div style={{ fontSize: 12, color: T.textSoft }}>
-          {(orden.items || []).map(i => `${i.cantidad}× ${i.nombre}`).join(' · ')}
-          {orden.mesero_id ? ` · Mesero ${orden.mesero_id}` : ''}
+        <div style={{ fontSize: 13, color: T.text, marginBottom: 8 }}>
+          {orden.items?.map((it, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+              <span>{it.cantidad}× {it.nombre}</span>
+              {it.observacion && <span style={{ ...FontMono, fontSize: 11, color: T.mustard }}>⚡ {it.observacion}</span>}
+            </div>
+          ))}
         </div>
-      </div>
-
-      {/* Countdown */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '8px 14px', background: T.card, borderRadius: 10, marginBottom: 14,
-        position: 'relative',
-      }}>
-        <span style={{ fontSize: 11, color: T.textSoft, ...FontMono }}>expira en</span>
-        <span style={{
-          ...FontFraunces, fontSize: 26, fontStyle: 'italic',
-          color: urgente ? T.red : T.mustard, lineHeight: 1,
-          animation: urgente ? 'ebs-countdown 1s ease-in-out infinite' : 'none',
-          display: 'inline-block',
-        }}>
-          {mm}:{ss}
-        </span>
-      </div>
-
-      {/* Nota de descuento */}
-      <div style={{ fontSize: 11, color: T.textMute, ...FontMono, marginBottom: 14, position: 'relative' }}>
-        Se descontará 1 almuerzo de tu plan
+        <div style={{ padding: 10, borderRadius: 10, background: 'rgba(255,255,255,.4)', ...FontMono, fontSize: 11, color: T.text, textAlign: 'center', fontWeight: 600 }}>
+          ⏱️ {mm}:{ss}
+        </div>
       </div>
 
       {/* Botones */}
-      <div style={{ display: 'flex', gap: 10, position: 'relative' }}>
+      <div style={{ display: 'flex', gap: 8, position: 'relative' }}>
         <button
-          disabled={procesando}
           onClick={handleAprobar}
+          disabled={procesando}
           style={{
-            flex: 1, padding: '13px 0', borderRadius: 12,
-            background: procesando ? T.oliveSoft : T.olive,
-            color: '#fff', border: 0, fontSize: 14, fontWeight: 600,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            flex: 1,
+            padding: '12px 14px',
+            borderRadius: 10,
+            background: T.olive,
+            border: `1px solid ${T.olive}`,
+            color: '#fff',
+            fontSize: 13,
+            fontWeight: 600,
             cursor: procesando ? 'not-allowed' : 'pointer',
             fontFamily: "'Manrope', sans-serif",
-            transition: 'background .2s ease',
+            transition: 'border-color .2s ease',
           }}
         >
-          <Check size={16} />{procesando ? 'Procesando…' : 'Aprobar'}
+          <Check size={16} /> Aprobar
         </button>
         <button
-          disabled={procesando}
           onClick={handleRechazar}
+          disabled={procesando}
           style={{
-            flex: 1, padding: '13px 0', borderRadius: 12,
-            background: 'transparent', color: T.red,
-            border: `1.5px solid ${T.border}`, fontSize: 14, fontWeight: 600,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            flex: 1,
+            padding: '12px 14px',
+            borderRadius: 10,
+            background: 'transparent',
+            border: `1px solid ${T.text}55`,
+            color: T.text,
+            fontSize: 13,
+            fontWeight: 600,
             cursor: procesando ? 'not-allowed' : 'pointer',
             fontFamily: "'Manrope', sans-serif",
             transition: 'border-color .2s ease',
