@@ -439,6 +439,8 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
                       ? T.amberSoft
                       : T.card;
 
+              const borderWidth = meseroColor && ocupada && !alerta && !seleccionada ? '3px' : '2px';
+
               return (
                 <button
                   key={m.id}
@@ -446,17 +448,18 @@ export function MeseroPanel({ activeTab, user, menu, mesas, suscriptores, orders
                   className={`p-3 rounded-xl text-left transition-all ${alerta ? 'animate-blink-urgent' : ''}`}
                   style={{
                     backgroundColor: bgColor,
-                    border: `2px solid ${borderColor}`,
+                    border: `${borderWidth} solid ${borderColor}`,
                     position: 'relative',
+                    overflow: 'hidden',
                   }}
                 >
-                  {/* Punto de color del mesero en la esquina */}
-                  {meseroColor && ocupada && (
+                  {/* Franja de color del mesero en la parte superior */}
+                  {meseroColor && ocupada && !alerta && (
                     <div style={{
-                      position: 'absolute', top: 7, right: 7,
-                      width: 8, height: 8, borderRadius: '50%',
+                      position: 'absolute', top: 0, left: 0, right: 0,
+                      height: 4,
                       background: meseroColor,
-                      boxShadow: `0 0 0 2px ${bgSuave}`,
+                      borderRadius: '10px 10px 0 0',
                     }} />
                   )}
 
