@@ -238,6 +238,14 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
                       <p className="text-xs mt-1" style={{ color: T.textSoft }}>
                         {plan ? `${plan.nombre} · ${s.almuerzos_restantes} almuerzos · vence ${s.fecha_vencimiento}` : 'Pendiente de activación'}
                       </p>
+                      {plan && (
+                        <p className="text-xs mt-1" style={{ color: T.textMute, ...FontMono }}>
+                          Asistencia: <strong style={{ color: T.olive }}>
+                            {new Set(orders.filter(o => o.suscriptor_id === s.id && o.tipo === 'suscripcion' && o.estado === 'entregado').map(o => (o.fecha||'').slice(0,10))).size}
+                            /{suscriptores.filter(x => x.activo && x.plan_id).length}
+                          </strong>
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ backgroundColor: T.bg }}>
@@ -277,7 +285,7 @@ export function AdminPanel({ activeTab, menu, planes, suscriptores, orders, mesa
 
       {/* HISTORIAL POR DÍAS */}
       {tab === 'historial' && (
-        <HistorialDias orders={orders} planes={planes} suscriptores={suscriptores} mesas={mesas} />
+        <HistorialDias orders={orders} planes={planes} suscriptores={suscriptores} mesas={mesas} users={users} />
       )}
 
       {/* PLANS */}
