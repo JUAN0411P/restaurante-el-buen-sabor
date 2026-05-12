@@ -40,7 +40,7 @@ function getBgSuave(color) {
 }
 
 /* ─── Panel de selección de color (sidebar del mesero) ─────── */
-function ColorPickerPanel({ user, users, refresh }) {
+export function ColorPickerPanel({ user, users, refresh }) {
   const currentColor = users.find(u => u.id === user.id)?.color || COLORES_MESERO[0].value;
   const [saving, setSaving] = useState(false);
   const [saved, setSaved]   = useState(false);
